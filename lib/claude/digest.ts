@@ -1,5 +1,10 @@
-import { getAnthropic, CLAUDE_MODEL } from "./client";
-import { DIGEST_SYSTEM_PROMPT, DIGEST_TOOL_SPEC } from "./prompts";
+import { getAnthropic, CLAUDE_MODEL, CLAUDE_HAIKU_MODEL } from "./client";
+import {
+  FILTER_SYSTEM_PROMPT,
+  FILTER_TOOL_SPEC,
+  SUMMARIZE_SYSTEM_PROMPT,
+  SUMMARIZE_TOOL_SPEC,
+} from "./prompts";
 import type { Category } from "@/lib/types";
 
 export type DigestInput = {
@@ -24,51 +29,112 @@ export type DigestResult = {
   articles: DigestArticleResult[];
 };
 
+type FilterArticle = {
+  raw_id: string;
+  should_include: boolean;
+  category: Category;
+  importance: number;
+};
+
+type SummarizeArticle = {
+  raw_id: string;
+  title_ja: string;
+  summary_ja: string;
+};
+
 export async function generateDigest(inputs: DigestInput[]): Promise<DigestResult> {
   if (inputs.length === 0) {
     return { overview_ja: "本日は特筆すべきAIニュースがありませんでした。", articles: [] };
   }
 
-  const userPayload = inputs.map((i) => ({
+  const anthropic = getAnthropic();
+
+  // Stage 1: classify all articles with Haiku (short excerpts, cheap)
+  const filterPayload = inputs.map((i) => ({
     raw_id: i.raw_id,
     source: i.source_name,
     title: i.title,
-    url: i.url,
-    excerpt: (i.raw_content ?? "").slice(0, 1500),
+    excerpt: (i.raw_content ?? "").slice(0, 500),
   }));
 
-  const anthropic = getAnthropic();
-
-  const res = await withRetry(() =>
+  const filterRes = await withRetry(() =>
     anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 8192,
-      system: [
-        {
-          type: "text",
-          text: DIGEST_SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      tools: [DIGEST_TOOL_SPEC],
-      tool_choice: { type: "tool", name: DIGEST_TOOL_SPEC.name },
+      model: CLAUDE_HAIKU_MODEL,
+      max_tokens: 4096,
+      system: [{ type: "text", text: FILTER_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      tools: [FILTER_TOOL_SPEC],
+      tool_choice: { type: "tool", name: FILTER_TOOL_SPEC.name },
       messages: [
         {
           role: "user",
-          content: `以下の記事群を評価してダイジェストを生成してください。\n\n${JSON.stringify(userPayload, null, 2)}`,
+          content: `以下の記事を分類してください。\n\n${JSON.stringify(filterPayload, null, 2)}`,
         },
       ],
     }),
   );
 
-  const toolUse = res.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
-    throw new Error("Claude response did not include a tool_use block");
+  const filterTool = filterRes.content.find((b) => b.type === "tool_use");
+  if (!filterTool || filterTool.type !== "tool_use") {
+    throw new Error("Stage 1: Claude response did not include a tool_use block");
   }
-  const result = toolUse.input as Partial<DigestResult>;
+  const classifications = ((filterTool.input as { articles?: FilterArticle[] }).articles ?? []);
+
+  // Stage 2: summarize only accepted articles with Sonnet
+  const accepted = classifications
+    .filter((c) => c.should_include && c.importance >= 3)
+    .sort((a, b) => b.importance - a.importance)
+    .slice(0, 15);
+
+  if (accepted.length === 0) {
+    return {
+      overview_ja: "本日は特筆すべきAIニュースがありませんでした。",
+      articles: classifications.map((c) => ({ ...c, title_ja: "", summary_ja: "" })),
+    };
+  }
+
+  const inputMap = new Map(inputs.map((i) => [i.raw_id, i]));
+  const summarizePayload = accepted.map((c) => {
+    const src = inputMap.get(c.raw_id);
+    return {
+      raw_id: c.raw_id,
+      source: src?.source_name ?? "",
+      title: src?.title ?? "",
+      url: src?.url ?? "",
+      excerpt: (src?.raw_content ?? "").slice(0, 1500),
+    };
+  });
+
+  const summarizeRes = await withRetry(() =>
+    anthropic.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 4096,
+      system: [{ type: "text", text: SUMMARIZE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      tools: [SUMMARIZE_TOOL_SPEC],
+      tool_choice: { type: "tool", name: SUMMARIZE_TOOL_SPEC.name },
+      messages: [
+        {
+          role: "user",
+          content: `以下の記事を日本語で要約し、総括を生成してください。\n\n${JSON.stringify(summarizePayload, null, 2)}`,
+        },
+      ],
+    }),
+  );
+
+  const summarizeTool = summarizeRes.content.find((b) => b.type === "tool_use");
+  if (!summarizeTool || summarizeTool.type !== "tool_use") {
+    throw new Error("Stage 2: Claude response did not include a tool_use block");
+  }
+  const summaryInput = summarizeTool.input as Partial<{ overview_ja: string; articles: SummarizeArticle[] }>;
+  const summaryMap = new Map((summaryInput.articles ?? []).map((s) => [s.raw_id, s]));
+
+  const articles: DigestArticleResult[] = classifications.map((c) => {
+    const s = summaryMap.get(c.raw_id);
+    return { ...c, title_ja: s?.title_ja ?? "", summary_ja: s?.summary_ja ?? "" };
+  });
+
   return {
-    overview_ja: result.overview_ja ?? "本日は特筆すべきAIニュースがありませんでした。",
-    articles: result.articles ?? [],
+    overview_ja: summaryInput.overview_ja ?? "本日は特筆すべきAIニュースがありませんでした。",
+    articles,
   };
 }
 
