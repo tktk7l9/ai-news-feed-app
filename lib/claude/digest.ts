@@ -65,7 +65,11 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
   if (!toolUse || toolUse.type !== "tool_use") {
     throw new Error("Claude response did not include a tool_use block");
   }
-  return toolUse.input as DigestResult;
+  const result = toolUse.input as Partial<DigestResult>;
+  return {
+    overview_ja: result.overview_ja ?? "本日は特筆すべきAIニュースがありませんでした。",
+    articles: result.articles ?? [],
+  };
 }
 
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
