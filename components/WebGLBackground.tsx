@@ -7,8 +7,8 @@ attribute vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
 `;
 
-// Value noise, 2 octaves, domain-warped for organic flow.
-// alpha: up to 0.28 (light) / 0.55 (dark) so it's clearly visible.
+// Opaque canvas: the shader composites gradient over the page background colour.
+// This guarantees the effect is visible — no CSS alpha-compositing issues.
 const FRAG = `
 precision mediump float;
 uniform float uTime;
@@ -16,13 +16,12 @@ uniform float uDark;
 uniform vec2  uRes;
 
 float hash(vec2 p) {
-  p = fract(p * vec2(234.34, 435.345));
-  p += dot(p, p + 34.23);
+  p = fract(p * vec2(127.1, 311.7));
+  p += dot(p, p + 19.19);
   return fract(p.x * p.y);
 }
-float noise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
+float vnoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
   return mix(
     mix(hash(i),             hash(i + vec2(1,0)), f.x),
@@ -33,36 +32,42 @@ float noise(vec2 p) {
 
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes;
-  float t  = uTime * 0.06;
   float ar = uRes.x / uRes.y;
-  vec2  st = vec2(uv.x * ar, uv.y);
+  float t  = uTime * 0.07;
+  vec2 st  = vec2(uv.x * ar, uv.y);
 
-  // domain-warp: offset st by a slow noise field
-  vec2 warp = vec2(
-    noise(st * 1.2 + vec2(t * 0.5, t * 0.3)),
-    noise(st * 1.2 + vec2(t * 0.3, t * 0.7) + 5.2)
-  ) * 0.6 - 0.3;
-
-  float n = noise((st + warp) * 1.4 + vec2(t, t * 0.5)) * 0.65
-          + noise((st + warp) * 2.8 + vec2(-t * 0.4, t * 0.8)) * 0.35;
+  // domain warp for organic flow
+  vec2 q = vec2(vnoise(st * 1.1 + vec2(t * 0.6, t * 0.4)),
+                vnoise(st * 1.1 + vec2(t * 0.3, t * 0.7) + 4.7)) * 0.55 - 0.275;
+  float n = vnoise((st + q) * 1.5 + vec2(t, t * 0.4)) * 0.6
+          + vnoise((st + q) * 3.0 + vec2(-t * 0.3, t * 0.6)) * 0.4;
   n = clamp(n, 0.0, 1.0);
 
-  // indigo → violet colour band
-  vec3 ca  = vec3(0.33, 0.35, 0.96);
-  vec3 cb  = vec3(0.55, 0.18, 0.90);
-  vec3 col = mix(ca, cb, uv.x * 0.5 + n * 0.5);
+  // gradient colours
+  vec3 ca = vec3(0.30, 0.32, 0.94); // indigo
+  vec3 cb = vec3(0.54, 0.16, 0.89); // violet
+  vec3 grad = mix(ca, cb, uv.x * 0.5 + n * 0.5);
 
-  // more visible alpha: light 0-0.28, dark 0-0.55
-  float maxA = uDark > 0.5 ? 0.55 : 0.28;
-  float alpha = n * maxA;
-  gl_FragColor = vec4(col, alpha);
+  // page background colours
+  vec3 bgLight = vec3(1.00, 1.00, 1.00);  // #ffffff
+  vec3 bgDark  = vec3(0.039, 0.039, 0.039); // #0a0a0a
+
+  // blend gradient over background — strength tuned per mode
+  vec3 bg = uDark > 0.5 ? bgDark : bgLight;
+  float strength = n * (uDark > 0.5 ? 0.32 : 0.18);
+  vec3 col = mix(bg, grad, strength);
+
+  gl_FragColor = vec4(col, 1.0); // fully opaque — always visible
 }
 `;
 
-function compile(gl: WebGLRenderingContext, type: number, src: string) {
+function compile(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
   const s = gl.createShader(type)!;
   gl.shaderSource(s, src);
   gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error("[WebGL] shader error:", gl.getShaderInfoLog(s));
+  }
   return s;
 }
 
@@ -72,13 +77,18 @@ export function WebGLBackground() {
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: false });
+    // alpha:false → opaque canvas — simpler, guaranteed visible
+    const gl = canvas.getContext("webgl", { alpha: false, antialias: false });
     if (!gl) return;
 
     const prog = gl.createProgram()!;
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
     gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG));
     gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error("[WebGL] link error:", gl.getProgramInfoLog(prog));
+      return;
+    }
     gl.useProgram(prog);
 
     const buf = gl.createBuffer();
@@ -92,16 +102,12 @@ export function WebGLBackground() {
     const uDark = gl.getUniformLocation(prog, "uDark");
     const uRes  = gl.getUniformLocation(prog, "uRes");
 
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     let dark = mq.matches ? 1.0 : 0.0;
     const onMq = (e: MediaQueryListEvent) => { dark = e.matches ? 1.0 : 0.0; };
     mq.addEventListener("change", onMq);
 
-    let raf = 0;
-    let start = 0;
+    let raf = 0, start = 0;
 
     const resize = () => {
       canvas.width  = window.innerWidth  * devicePixelRatio;
@@ -116,8 +122,6 @@ export function WebGLBackground() {
       gl.uniform1f(uTime, (ts - start) * 0.001);
       gl.uniform1f(uDark, dark);
       gl.uniform2f(uRes, canvas.width, canvas.height);
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       raf = requestAnimationFrame(tick);
     };

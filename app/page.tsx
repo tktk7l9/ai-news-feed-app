@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArticleCard } from "@/components/ArticleCard";
 import { DailyOverview } from "@/components/DailyOverview";
+import { ModelSidebar } from "@/components/ModelSidebar";
 import { getLatestDigest } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -20,17 +21,27 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <DailyOverview date={digest.date} overview={digest.overview_ja} articleCount={digest.article_count} />
-      <div className="space-y-4">
-        {articles.map((a) => (
-          <ArticleCard key={a.id} article={a} />
-        ))}
-      </div>
-      <div className="mt-8 text-center">
-        <Link href="/archive" className="text-sm text-indigo-600 hover:underline dark:text-indigo-400">
-          過去のアーカイブを見る →
-        </Link>
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="flex gap-8 items-start">
+        {/* Main feed */}
+        <div className="flex-1 min-w-0">
+          <DailyOverview date={digest.date} overview={digest.overview_ja} articleCount={digest.article_count} />
+          <div className="space-y-4">
+            {articles.map((a) => (
+              <ArticleCard key={a.id} article={a} />
+            ))}
+          </div>
+          <div className="mt-8 text-center">
+            <Link href="/archive" className="text-sm text-indigo-600 hover:underline dark:text-indigo-400">
+              過去のアーカイブを見る →
+            </Link>
+          </div>
+        </div>
+
+        {/* Sidebar — shown on xl and wider */}
+        <aside className="hidden xl:block w-64 shrink-0 sticky top-24">
+          <ModelSidebar />
+        </aside>
       </div>
     </div>
   );
