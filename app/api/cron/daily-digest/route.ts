@@ -5,9 +5,7 @@ import { fetchAllSources } from "@/lib/rss/fetcher";
 import { filterAndCap } from "@/lib/rss/filter";
 import { generateDigest, type DigestInput } from "@/lib/claude/digest";
 import { jstDateString } from "@/lib/date";
-import { sendEmail, notifyAdmin } from "@/lib/email/resend";
-import { renderDigestEmail } from "@/lib/email/digest-template";
-import type { Source, Article, DailyDigest } from "@/lib/types";
+import type { Source } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -25,7 +23,6 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? `${e.message}\n${e.stack}` : String(e);
     console.error("[cron] daily-digest failed", msg);
-    await notifyAdmin("daily-digest failed", msg).catch(() => {});
     return NextResponse.json({ error: "failed", message: msg }, { status: 500 });
   }
 }
@@ -148,15 +145,9 @@ async function runDailyDigest() {
     revalidatePath("/");
     revalidatePath("/archive");
     revalidatePath(`/archive/${today}`);
-    revalidatePath("/feed.xml");
   } catch (e) {
     console.warn("[cron] revalidate failed", e);
   }
-
-  // 10. Email subscribers
-  await sendDigestEmails(today).catch((e) => {
-    console.error("[cron] email send failed", e);
-  });
 
   return {
     date: today,
@@ -166,35 +157,4 @@ async function runDailyDigest() {
     candidates: filtered.length,
     accepted: articleRows.length,
   };
-}
-
-async function sendDigestEmails(date: string) {
-  const sb = getServiceClient();
-  const { data: digest } = await sb.from("daily_digests").select("*").eq("date", date).maybeSingle();
-  const { data: articles } = await sb
-    .from("articles")
-    .select("*")
-    .eq("digest_date", date)
-    .order("importance", { ascending: false });
-  if (!digest || !articles || articles.length === 0) return;
-
-  const { data: subs } = await sb
-    .from("subscribers")
-    .select("email, unsubscribe_token")
-    .not("confirmed_at", "is", null);
-  if (!subs || subs.length === 0) return;
-
-  const appUrl = process.env.APP_URL ?? "";
-  for (const s of subs) {
-    const unsubUrl = `${appUrl}/api/unsubscribe?token=${encodeURIComponent(s.unsubscribe_token)}`;
-    const { subject, html } = renderDigestEmail(
-      digest as DailyDigest,
-      articles as Article[],
-      unsubUrl,
-      appUrl,
-    );
-    await sendEmail(s.email, subject, html).catch((e) =>
-      console.warn("[email] send failed", s.email, e),
-    );
-  }
 }

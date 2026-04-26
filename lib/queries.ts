@@ -24,15 +24,15 @@ export async function getLatestDigest(): Promise<{ digest: DailyDigest | null; a
   return getDigest(latest.date);
 }
 
-export async function getArchiveDates(limit = 60): Promise<{ date: string; article_count: number }[]> {
+export async function getArchiveDates(limit = 60): Promise<{ date: string; article_count: number; overview_ja: string }[]> {
   const sb = tryGetServiceClient();
   if (!sb) return [];
   const { data } = await sb
     .from("daily_digests")
-    .select("date, article_count")
+    .select("date, article_count, overview_ja")
     .order("date", { ascending: false })
     .limit(limit);
-  return (data ?? []) as { date: string; article_count: number }[];
+  return (data ?? []) as { date: string; article_count: number; overview_ja: string }[];
 }
 
 export async function getArticlesByCategory(category: Category, limit = 50): Promise<Article[]> {
