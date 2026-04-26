@@ -2,12 +2,22 @@ import Link from "next/link";
 import { ArticleCard } from "@/components/ArticleCard";
 import { DailyOverview } from "@/components/DailyOverview";
 import { ModelSidebar } from "@/components/ModelSidebar";
-import { getLatestDigest } from "@/lib/queries";
+import { WeeklyStats } from "@/components/WeeklyStats";
+import { WeeklyTopArticles } from "@/components/WeeklyTopArticles";
+import {
+  getLatestDigest,
+  getWeeklyCategoryStats,
+  getWeeklyTopArticles,
+} from "@/lib/queries";
 
 export const revalidate = 3600;
 
 export default async function HomePage() {
-  const { digest, articles } = await getLatestDigest();
+  const [{ digest, articles }, weeklyStats, weeklyTop] = await Promise.all([
+    getLatestDigest(),
+    getWeeklyCategoryStats(),
+    getWeeklyTopArticles(5),
+  ]);
 
   if (!digest) {
     return (
@@ -38,8 +48,10 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Sidebar — shown on xl and wider */}
-        <aside className="hidden xl:block w-64 shrink-0 sticky top-24">
+        {/* Sidebar — xl and wider */}
+        <aside className="hidden xl:flex flex-col gap-4 w-64 shrink-0 sticky top-24">
+          <WeeklyTopArticles articles={weeklyTop} />
+          <WeeklyStats stats={weeklyStats} />
           <ModelSidebar />
         </aside>
       </div>
