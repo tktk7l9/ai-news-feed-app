@@ -7,7 +7,9 @@ export async function getDigest(date: string): Promise<{ digest: DailyDigest | n
   if (!sb) return { digest: null, articles: [] };
   const [{ data: digest }, { data: articles }] = await Promise.all([
     sb.from("daily_digests").select("*").eq("date", date).maybeSingle(),
-    sb.from("articles").select("*").eq("digest_date", date).order("importance", { ascending: false }),
+    sb.from("articles").select("*").eq("digest_date", date)
+      .order("is_model_release", { ascending: false })
+      .order("importance", { ascending: false }),
   ]);
   return { digest: (digest as DailyDigest) ?? null, articles: (articles ?? []) as Article[] };
 }

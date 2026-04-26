@@ -107,6 +107,7 @@ async function runDailyDigest() {
         summary_ja: a.summary_ja,
         category: a.category,
         importance: a.importance,
+        is_model_release: a.is_model_release ?? false,
         url: src.url,
         source_name: src.source_name,
         published_at: src.published_at,

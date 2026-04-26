@@ -30,6 +30,7 @@ export type Article = {
   url: string;
   source_name: string;
   published_at: string | null;
+  is_model_release: boolean;
 };
 
 export type DailyDigest = {

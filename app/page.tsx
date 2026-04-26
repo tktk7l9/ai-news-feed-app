@@ -36,8 +36,28 @@ export default async function HomePage() {
         {/* Main feed */}
         <div className="flex-1 min-w-0">
           <DailyOverview date={digest.date} overview={digest.overview_ja} articleCount={digest.article_count} />
+
+          {/* New model releases — pinned to top */}
+          {articles.some((a) => a.is_model_release) && (
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span className="text-[11px] font-bold tracking-[0.18em] text-amber-700 dark:text-amber-500 uppercase">
+                  新モデルリリース
+                </span>
+                <div className="flex-1 h-px bg-amber-300/50 dark:bg-amber-700/40" />
+              </div>
+              <div className="space-y-4">
+                {articles.filter((a) => a.is_model_release).map((a) => (
+                  <ArticleCard key={a.id} article={a} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Regular articles */}
           <div className="space-y-4">
-            {articles.map((a) => (
+            {articles.filter((a) => !a.is_model_release).map((a) => (
               <ArticleCard key={a.id} article={a} />
             ))}
           </div>

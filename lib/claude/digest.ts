@@ -22,6 +22,7 @@ export type DigestArticleResult = {
   summary_ja: string;
   category: Category;
   importance: number;
+  is_model_release: boolean;
 };
 
 export type DigestResult = {
@@ -34,6 +35,7 @@ type FilterArticle = {
   should_include: boolean;
   category: Category;
   importance: number;
+  is_model_release: boolean;
 };
 
 type SummarizeArticle = {
@@ -88,7 +90,7 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
   if (accepted.length === 0) {
     return {
       overview_ja: "本日は特筆すべきAIニュースがありませんでした。",
-      articles: classifications.map((c) => ({ ...c, title_ja: "", summary_ja: "" })),
+      articles: classifications.map((c) => ({ ...c, title_ja: "", summary_ja: "", is_model_release: c.is_model_release ?? false })),
     };
   }
 
@@ -129,7 +131,7 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
 
   const articles: DigestArticleResult[] = classifications.map((c) => {
     const s = summaryMap.get(c.raw_id);
-    return { ...c, title_ja: s?.title_ja ?? "", summary_ja: s?.summary_ja ?? "" };
+    return { ...c, is_model_release: c.is_model_release ?? false, title_ja: s?.title_ja ?? "", summary_ja: s?.summary_ja ?? "" };
   });
 
   return {
