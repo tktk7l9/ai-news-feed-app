@@ -23,6 +23,10 @@ export async function fetchAllSources(sources: Source[]): Promise<FetchResult[]>
 }
 
 async function fetchOne(source: Source): Promise<FetchResult> {
+  const { protocol } = new URL(source.feed_url);
+  if (protocol !== "https:" && protocol !== "http:") {
+    return { source, articles: [], error: `disallowed protocol: ${protocol}` };
+  }
   const feed = await parser.parseURL(source.feed_url);
   const cutoff = Date.now() - LOOKBACK_MS;
   const articles: Omit<RawArticle, "id">[] = [];

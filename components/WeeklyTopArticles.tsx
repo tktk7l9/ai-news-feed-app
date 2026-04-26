@@ -1,4 +1,5 @@
 import type { Article } from "@/lib/types";
+import { safeHref } from "@/lib/url";
 
 function shortDate(isoDate: string) {
   const [, m, d] = isoDate.split("-");
@@ -21,7 +22,7 @@ export function WeeklyTopArticles({ articles }: { articles: Article[] }) {
           {articles.map((a) => (
             <a
               key={a.id}
-              href={a.url}
+              href={safeHref(a.url)}
               target="_blank"
               rel="noopener noreferrer"
               className="block px-4 py-3 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors group"

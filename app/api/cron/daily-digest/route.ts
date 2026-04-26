@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { getServiceClient } from "@/lib/supabase/server";
 import { fetchAllSources } from "@/lib/rss/fetcher";
 import { filterAndCap } from "@/lib/rss/filter";
@@ -10,10 +11,18 @@ import type { Source } from "@/lib/types";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+function verifyBearerToken(provided: string | null, secret: string): boolean {
+  if (!provided) return false;
+  const expected = `Bearer ${secret}`;
+  const key = randomBytes(32);
+  const a = createHmac("sha256", key).update(provided).digest();
+  const b = createHmac("sha256", key).update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-  const expected = `Bearer ${process.env.CRON_SECRET}`;
-  if (!process.env.CRON_SECRET || auth !== expected) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !verifyBearerToken(req.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -21,9 +30,8 @@ export async function GET(req: NextRequest) {
     const result = await runDailyDigest();
     return NextResponse.json(result);
   } catch (e) {
-    const msg = e instanceof Error ? `${e.message}\n${e.stack}` : String(e);
-    console.error("[cron] daily-digest failed", msg);
-    return NextResponse.json({ error: "failed", message: msg }, { status: 500 });
+    console.error("[cron] daily-digest failed", e);
+    return NextResponse.json({ error: "internal server error" }, { status: 500 });
   }
 }
 
