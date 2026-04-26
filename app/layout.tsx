@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { WebGLBackground } from "@/components/WebGLBackground";
@@ -6,9 +6,41 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-inter" });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ai-news-feed-app.vercel.app";
+
 export const metadata: Metadata = {
-  title: "AIニュース・ダイジェスト",
-  description: "毎朝7時(JST)に更新する、AI関連トピックの日本語ダイジェスト。",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "AIニュース・ダイジェスト",
+    template: "%s | AIニュース・ダイジェスト",
+  },
+  description: "毎朝7時(JST)に更新する、AI関連トピックの日本語ダイジェスト。最新のAI研究・モデルリリース・業界動向を毎日お届けします。",
+  keywords: ["AI", "人工知能", "ニュース", "ダイジェスト", "機械学習", "LLM", "大規模言語モデル"],
+  authors: [{ name: "AI News Digest" }],
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    url: siteUrl,
+    siteName: "AIニュース・ダイジェスト",
+    title: "AIニュース・ダイジェスト",
+    description: "毎朝7時(JST)に更新する、AI関連トピックの日本語ダイジェスト。",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AIニュース・ダイジェスト",
+    description: "毎朝7時(JST)に更新する、AI関連トピックの日本語ダイジェスト。",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#d97706" },
+    { media: "(prefers-color-scheme: dark)", color: "#92400e" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
