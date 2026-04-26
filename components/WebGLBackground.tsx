@@ -7,6 +7,8 @@ attribute vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
 `;
 
+// Value noise, 2 octaves, domain-warped for organic flow.
+// alpha: up to 0.28 (light) / 0.55 (dark) so it's clearly visible.
 const FRAG = `
 precision mediump float;
 uniform float uTime;
@@ -14,7 +16,9 @@ uniform float uDark;
 uniform vec2  uRes;
 
 float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  p = fract(p * vec2(234.34, 435.345));
+  p += dot(p, p + 34.23);
+  return fract(p.x * p.y);
 }
 float noise(vec2 p) {
   vec2 i = floor(p);
@@ -29,19 +33,29 @@ float noise(vec2 p) {
 
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes;
-  float t  = uTime * 0.05;
+  float t  = uTime * 0.06;
   float ar = uRes.x / uRes.y;
   vec2  st = vec2(uv.x * ar, uv.y);
 
-  float n = noise(st * 1.6 + vec2(t, t * 0.6)) * 0.6
-          + noise(st * 3.2 + vec2(-t * 0.4, t * 0.9)) * 0.4;
+  // domain-warp: offset st by a slow noise field
+  vec2 warp = vec2(
+    noise(st * 1.2 + vec2(t * 0.5, t * 0.3)),
+    noise(st * 1.2 + vec2(t * 0.3, t * 0.7) + 5.2)
+  ) * 0.6 - 0.3;
 
-  vec3 ca = vec3(0.36, 0.36, 0.94);
-  vec3 cb = vec3(0.52, 0.18, 0.88);
-  vec3 col = mix(ca, cb, uv.x * 0.6 + n * 0.4);
+  float n = noise((st + warp) * 1.4 + vec2(t, t * 0.5)) * 0.65
+          + noise((st + warp) * 2.8 + vec2(-t * 0.4, t * 0.8)) * 0.35;
+  n = clamp(n, 0.0, 1.0);
 
-  float alpha = n * n * (uDark > 0.5 ? 0.22 : 0.10);
-  gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.3));
+  // indigo → violet colour band
+  vec3 ca  = vec3(0.33, 0.35, 0.96);
+  vec3 cb  = vec3(0.55, 0.18, 0.90);
+  vec3 col = mix(ca, cb, uv.x * 0.5 + n * 0.5);
+
+  // more visible alpha: light 0-0.28, dark 0-0.55
+  float maxA = uDark > 0.5 ? 0.55 : 0.28;
+  float alpha = n * maxA;
+  gl_FragColor = vec4(col, alpha);
 }
 `;
 
@@ -90,13 +104,12 @@ export function WebGLBackground() {
     let start = 0;
 
     const resize = () => {
-      canvas.width  = canvas.offsetWidth  * devicePixelRatio;
-      canvas.height = canvas.offsetHeight * devicePixelRatio;
+      canvas.width  = window.innerWidth  * devicePixelRatio;
+      canvas.height = window.innerHeight * devicePixelRatio;
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
     resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
+    window.addEventListener("resize", resize);
 
     const tick = (ts: number) => {
       if (!start) start = ts;
@@ -112,7 +125,7 @@ export function WebGLBackground() {
 
     return () => {
       cancelAnimationFrame(raf);
-      ro.disconnect();
+      window.removeEventListener("resize", resize);
       mq.removeEventListener("change", onMq);
     };
   }, []);
@@ -124,8 +137,8 @@ export function WebGLBackground() {
       style={{
         position: "fixed",
         inset: 0,
-        width: "100%",
-        height: "100%",
+        width: "100vw",
+        height: "100vh",
         pointerEvents: "none",
         zIndex: 0,
       }}
