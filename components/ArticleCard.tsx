@@ -3,7 +3,7 @@ import { CategoryBadge } from "./CategoryBadge";
 
 export function ArticleCard({ article }: { article: Article }) {
   return (
-    <article className="border border-black/6 dark:border-white/10 rounded-xl p-4 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white/75 dark:bg-black/40 backdrop-blur-sm">
+    <article className="border border-black/6 dark:border-white/10 rounded-xl p-4 hover:border-amber-300 dark:hover:border-amber-700 transition-colors bg-white/75 dark:bg-black/40 backdrop-blur-sm">
       <div className="flex items-center gap-2 mb-2 text-xs text-neutral-500">
         <CategoryBadge category={article.category} />
         <span>·</span>
@@ -14,7 +14,7 @@ export function ArticleCard({ article }: { article: Article }) {
         </span>
       </div>
       <h2 className="text-base font-semibold leading-snug mb-2">
-        <a href={article.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 dark:hover:text-indigo-400">
+        <a href={article.url} target="_blank" rel="noopener noreferrer" className="hover:text-amber-600 dark:hover:text-amber-400">
           {article.title_ja}
         </a>
       </h2>

@@ -42,7 +42,7 @@ export default async function HomePage() {
             ))}
           </div>
           <div className="mt-8 text-center">
-            <Link href="/archive" className="text-sm text-indigo-600 hover:underline dark:text-indigo-400">
+            <Link href="/archive" className="text-sm text-amber-700 hover:underline dark:text-amber-500">
               過去のアーカイブを見る →
             </Link>
           </div>

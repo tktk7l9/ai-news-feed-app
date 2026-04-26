@@ -44,7 +44,7 @@ export default async function ArchiveIndex() {
                     const dowColor = isSun
                       ? "text-rose-400"
                       : isSat
-                        ? "text-indigo-400"
+                        ? "text-amber-400"
                         : "text-neutral-400 dark:text-neutral-500";
 
                     return (
@@ -52,13 +52,13 @@ export default async function ArchiveIndex() {
                         key={d.date}
                         href={`/archive/${d.date}`}
                         className="group flex items-start gap-4 px-4 py-3 rounded-xl
-                                   hover:bg-indigo-50/60 dark:hover:bg-indigo-950/25
+                                   hover:bg-amber-50/60 dark:hover:bg-amber-950/25
                                    transition-colors duration-150"
                       >
                         {/* Day number */}
                         <div className="w-8 shrink-0 text-right pt-px">
                           <span className="text-xl font-light text-neutral-300 dark:text-neutral-600 tabular-nums
-                                           group-hover:text-indigo-300 dark:group-hover:text-indigo-700 transition-colors">
+                                           group-hover:text-amber-300 dark:group-hover:text-amber-700 transition-colors">
                             {day}
                           </span>
                         </div>
@@ -85,7 +85,7 @@ export default async function ArchiveIndex() {
                             {d.article_count}件
                           </span>
                           <span className="text-neutral-300 dark:text-neutral-600
-                                           group-hover:text-indigo-400 transition-colors text-sm">
+                                           group-hover:text-amber-400 transition-colors text-sm">
                             →
                           </span>
                         </div>

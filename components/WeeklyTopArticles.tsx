@@ -24,7 +24,7 @@ export function WeeklyTopArticles({ articles }: { articles: Article[] }) {
               href={a.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block px-4 py-3 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors group"
+              className="block px-4 py-3 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors group"
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex gap-px">
@@ -47,7 +47,7 @@ export function WeeklyTopArticles({ articles }: { articles: Article[] }) {
               </div>
               <p className="text-[12px] font-medium leading-snug line-clamp-2
                             text-neutral-800 dark:text-neutral-200
-                            group-hover:text-indigo-700 dark:group-hover:text-indigo-300
+                            group-hover:text-amber-700 dark:group-hover:text-amber-300
                             transition-colors">
                 {a.title_ja}
               </p>

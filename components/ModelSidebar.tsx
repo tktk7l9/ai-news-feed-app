@@ -28,12 +28,12 @@ const MODELS: {
 const TIER_LABEL: Record<Tier, string> = { S: "S — フロンティア", A: "A — 高性能", B: "B — 軽量・OSS" };
 const TIER_BADGE: Record<Tier, string> = {
   S: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
-  A: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400",
+  A: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
   B: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
 };
 const TIER_BAR: Record<Tier, string> = {
   S: "bg-amber-400 dark:bg-amber-500",
-  A: "bg-indigo-400 dark:bg-indigo-500",
+  A: "bg-orange-400 dark:bg-orange-500",
   B: "bg-neutral-400 dark:bg-neutral-500",
 };
 

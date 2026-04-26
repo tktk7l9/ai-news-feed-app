@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="relative z-10 border-b border-black/8 dark:border-white/8 backdrop-blur-sm bg-background/80">
           <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link href="/" className="font-semibold text-lg tracking-tight">
-              AI News<span className="text-indigo-500"> ·</span>{" "}
+              AI News<span className="text-amber-500"> ·</span>{" "}
               <span className="text-sm font-normal text-neutral-500">日本語ダイジェスト</span>
             </Link>
             <nav className="flex items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400">
