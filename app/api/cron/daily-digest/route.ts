@@ -4,7 +4,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { getServiceClient } from "@/lib/supabase/server";
 import { fetchAllSources } from "@/lib/rss/fetcher";
 import { filterAndCap } from "@/lib/rss/filter";
-import { generateDigest, type DigestInput } from "@/lib/claude/digest";
+import { generateDigest, type DigestInput } from "@/lib/gemini/digest";
 import { jstDateString } from "@/lib/date";
 import type { Source } from "@/lib/types";
 
