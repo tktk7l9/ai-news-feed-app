@@ -68,6 +68,10 @@ export default async function HomePage() {
             <ManualRefreshButton />
           </div>
 
+          <div className="mb-6">
+            <AiTrivia initial={pickRandomTrivia()} />
+          </div>
+
           {/* New model releases — pinned to top */}
           {articles.some((a) => a.is_model_release) && (
             <div className="mb-6">
