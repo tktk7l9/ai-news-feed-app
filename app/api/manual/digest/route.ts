@@ -14,7 +14,7 @@ function verifyBearerToken(provided: string | null, secret: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || !verifyBearerToken(req.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
     const result = await runDailyDigest();
     return NextResponse.json(result);
   } catch (e) {
-    console.error("[cron] daily-digest failed", e);
-    return NextResponse.json({ error: "internal server error" }, { status: 500 });
+    console.error("[manual] digest failed", e);
+    const message = e instanceof Error ? e.message : "internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
