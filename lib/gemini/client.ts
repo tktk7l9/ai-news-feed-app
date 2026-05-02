@@ -10,5 +10,5 @@ export function getGemini(): GoogleGenerativeAI {
   return cached;
 }
 
-// Free tier: 1500 req/day, 1M tokens/min
-export const GEMINI_MODEL = "gemini-1.5-flash";
+// Free tier: 10 RPM, 250 RPD, 250K TPM (cron uses ~2 req/day)
+export const GEMINI_MODEL = "gemini-2.5-flash";
