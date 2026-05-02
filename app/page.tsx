@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { AiTrivia } from "@/components/AiTrivia";
 import { ArticleCard } from "@/components/ArticleCard";
 import { DailyOverview } from "@/components/DailyOverview";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { ModelSidebar } from "@/components/ModelSidebar";
 import { WeeklyStats } from "@/components/WeeklyStats";
 import { WeeklyTopArticles } from "@/components/WeeklyTopArticles";
@@ -9,23 +11,42 @@ import {
   getWeeklyCategoryStats,
   getWeeklyTopArticles,
 } from "@/lib/queries";
+import { pickRandomTrivia } from "@/lib/trivia";
 
 export const revalidate = 3600;
 
 export default async function HomePage() {
-  const [{ digest, articles }, weeklyStats, weeklyTop] = await Promise.all([
+  const [latest, weekly, weeklyTopRes] = await Promise.all([
     getLatestDigest(),
     getWeeklyCategoryStats(),
     getWeeklyTopArticles(5),
   ]);
 
+  const { digest, articles, error: digestError } = latest;
+  const { stats: weeklyStats, error: weeklyStatsError } = weekly;
+  const { articles: weeklyTop, error: weeklyTopError } = weeklyTopRes;
+
+  const errors = [digestError, weeklyStatsError, weeklyTopError].filter(
+    (e): e is string => Boolean(e),
+  );
+
+  if (digestError) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-12">
+        <h1 className="text-xl font-semibold mb-4">取得に失敗しました</h1>
+        <ErrorBanner message={digestError} />
+      </div>
+    );
+  }
+
   if (!digest) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-xl font-semibold mb-2">準備中です</h1>
-        <p className="text-sm text-neutral-600 dark:text-neutral-300">
-          まだダイジェストが生成されていません。日次ジョブの初回実行をお待ちください。
+        <h1 className="text-xl font-semibold mb-2">本日のニュースはまだありません</h1>
+        <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-6">
+          ダイジェストが生成されるまで、AI に関する雑学をどうぞ。
         </p>
+        <AiTrivia initial={pickRandomTrivia()} />
       </div>
     );
   }
@@ -35,6 +56,9 @@ export default async function HomePage() {
       <div className="flex gap-8 items-start">
         {/* Main feed */}
         <div className="flex-1 min-w-0">
+          {errors.map((msg, i) => (
+            <ErrorBanner key={i} message={msg} />
+          ))}
           <DailyOverview date={digest.date} overview={digest.overview_ja} articleCount={digest.article_count} />
 
           {/* New model releases — pinned to top */}

@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { AiTrivia } from "@/components/AiTrivia";
 import { ArticleCard } from "@/components/ArticleCard";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { getArticlesByCategory } from "@/lib/queries";
+import { pickRandomTrivia } from "@/lib/trivia";
 import { CATEGORIES, CATEGORY_LABELS, type Category } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -14,7 +17,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   if (!CATEGORIES.includes(slug as Category)) notFound();
   const cat = slug as Category;
-  const articles = await getArticlesByCategory(cat, 50);
+  const { articles, error } = await getArticlesByCategory(cat, 50);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -22,8 +25,15 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       <h1 className="text-xl font-semibold mt-4 mb-6">
         カテゴリ: {CATEGORY_LABELS[cat]}
       </h1>
-      {articles.length === 0 ? (
-        <p className="text-sm text-neutral-500">該当する記事がまだありません。</p>
+      {error ? (
+        <ErrorBanner message={error} />
+      ) : articles.length === 0 ? (
+        <div>
+          <p className="text-sm text-neutral-500 mb-6">
+            このカテゴリにはまだ記事がありません。AI に関する雑学をどうぞ。
+          </p>
+          <AiTrivia initial={pickRandomTrivia()} />
+        </div>
       ) : (
         <div className="space-y-4">
           {articles.map((a) => (

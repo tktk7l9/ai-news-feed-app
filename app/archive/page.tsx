@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { getArchiveDates } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -6,7 +7,7 @@ export const revalidate = 3600;
 const DOW_JA = ["日", "月", "火", "水", "木", "金", "土"];
 
 export default async function ArchiveIndex() {
-  const dates = await getArchiveDates(120);
+  const { dates, error } = await getArchiveDates(120);
   const grouped = new Map<string, typeof dates>();
   for (const d of dates) {
     const ym = d.date.slice(0, 7);
@@ -18,7 +19,9 @@ export default async function ArchiveIndex() {
     <div className="max-w-3xl mx-auto px-4 py-12">
       <h1 className="text-2xl font-bold mb-10 tracking-tight">アーカイブ</h1>
 
-      {dates.length === 0 ? (
+      {error ? (
+        <ErrorBanner message={error} />
+      ) : dates.length === 0 ? (
         <p className="text-sm text-neutral-500">まだ過去のダイジェストがありません。</p>
       ) : (
         <div className="space-y-12">
