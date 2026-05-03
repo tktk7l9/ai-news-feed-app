@@ -72,7 +72,7 @@ export default function OgImage() {
             fontWeight: 400,
           }}
         >
-          毎朝7時(JST)更新 — AI関連トピックの日本語まとめ
+          JST 6時・18時 更新 — AI関連トピックの日本語まとめ
         </div>
       </div>
     ),

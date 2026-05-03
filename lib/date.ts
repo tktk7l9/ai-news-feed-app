@@ -1,4 +1,4 @@
-// Day key for the digest is JST-based so the cron at JST 07:00 stamps the right date.
+// Day key for the digest is JST-based so the cron at JST 06:00 / 18:00 stamps the right date.
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 export function jstDateString(d: Date = new Date()): string {

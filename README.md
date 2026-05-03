@@ -1,10 +1,10 @@
 # AIニュース・ダイジェスト
 
-毎朝7時(JST)に更新する、AI関連トピックの日本語ダイジェストWebアプリ。
+1日2回(JST 6時・18時)に更新する、AI関連トピックの日本語ダイジェストWebアプリ。
 
 ## 仕組み
 
-1. **Vercel Cron** が日次で `/api/cron/daily-digest` を叩く (`0 22 * * *` UTC = JST 翌朝07:00)
+1. **Vercel Cron** が1日2回 `/api/cron/daily-digest` を叩く (`0 9,21 * * *` UTC = JST 06:00 / 18:00)
 2. Supabaseに登録された **RSSソース** を並列で取得 (過去24時間分)
 3. AIキーワードでフィルタ → **Claude API** に2段階でバッチ投入
    - Stage 1: Haiku でカテゴリ分類・重要度スコアリング
