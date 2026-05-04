@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     default: "AIニュース・ダイジェスト",
     template: "%s | AIニュース・ダイジェスト",
   },
-  description: "1日2回(JST 6時・18時)に更新する、AI関連トピックの日本語ダイジェスト。最新のAI研究・モデルリリース・業界動向を毎日お届けします。",
+  description: "毎朝(JST 6時)に更新する、AI関連トピックの日本語ダイジェスト。最新のAI研究・モデルリリース・業界動向を毎日お届けします。",
   keywords: ["AI", "人工知能", "ニュース", "ダイジェスト", "機械学習", "LLM", "大規模言語モデル"],
   authors: [{ name: "AI News Digest" }],
   openGraph: {
@@ -24,12 +24,12 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: "AIニュース・ダイジェスト",
     title: "AIニュース・ダイジェスト",
-    description: "1日2回(JST 6時・18時)に更新する、AI関連トピックの日本語ダイジェスト。",
+    description: "毎朝(JST 6時)に更新する、AI関連トピックの日本語ダイジェスト。",
   },
   twitter: {
     card: "summary_large_image",
     title: "AIニュース・ダイジェスト",
-    description: "1日2回(JST 6時・18時)に更新する、AI関連トピックの日本語ダイジェスト。",
+    description: "毎朝(JST 6時)に更新する、AI関連トピックの日本語ダイジェスト。",
   },
   robots: {
     index: true,
