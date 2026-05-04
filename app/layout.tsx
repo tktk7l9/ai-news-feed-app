@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import { FooterUpdatedAt } from "@/components/FooterUpdatedAt";
 import { WebGLBackground } from "@/components/WebGLBackground";
 import "./globals.css";
 
@@ -63,7 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="relative z-10 border-t border-black/8 dark:border-white/8 mt-12 backdrop-blur-sm bg-background/60">
           <div className="max-w-3xl mx-auto px-4 py-6 text-xs text-neutral-400 flex justify-between">
             <span>© AI News Digest</span>
-            <span>JST 06:00 / 18:00 更新</span>
+            <FooterUpdatedAt />
           </div>
         </footer>
       </body>
