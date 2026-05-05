@@ -73,7 +73,7 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
     ),
   );
 
-  const filterParsed = JSON.parse(filterRes.response.text()) as { articles?: FilterArticle[] };
+  const filterParsed = safeJsonParse<{ articles?: FilterArticle[] }>(filterRes.response.text(), { articles: [] });
   const classifications = filterParsed.articles ?? [];
 
   // Stage 2: summarize only accepted articles
@@ -100,7 +100,7 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: SUMMARIZE_RESPONSE_SCHEMA,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 16384,
     },
   });
 
@@ -122,10 +122,10 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
     ),
   );
 
-  const summaryParsed = JSON.parse(summarizeRes.response.text()) as Partial<{
-    overview_ja: string;
-    articles: SummarizeArticle[];
-  }>;
+  const summaryParsed = safeJsonParse<Partial<{ overview_ja: string; articles: SummarizeArticle[] }>>(
+    summarizeRes.response.text(),
+    {},
+  );
   const summaryMap = new Map((summaryParsed.articles ?? []).map((s) => [s.raw_id, s]));
 
   const articles: DigestArticleResult[] = classifications.map((c) => {
@@ -142,6 +142,26 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
     overview_ja: summaryParsed.overview_ja ?? "本日は特筆すべきAIニュースがありませんでした。",
     articles,
   };
+}
+
+function safeJsonParse<T>(text: string, fallback: T): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // Gemini occasionally emits unescaped control characters; strip and retry.
+    const sanitized = text.replace(/[\x00-\x1F\x7F]/g, (c) => {
+      if (c === "\n") return "\\n";
+      if (c === "\r") return "\\r";
+      if (c === "\t") return "\\t";
+      return "";
+    });
+    try {
+      return JSON.parse(sanitized) as T;
+    } catch (e2) {
+      console.error("[gemini] JSON parse failed after sanitize:", e2, "\nraw:", text.slice(0, 200));
+      return fallback;
+    }
+  }
 }
 
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
