@@ -16,11 +16,24 @@ export type DigestRunResult = {
   processed?: number;
 };
 
-export async function runDailyDigest(): Promise<DigestRunResult> {
+export type DigestProgress =
+  | { stage: "loading_sources" }
+  | { stage: "fetching_rss"; sources: number }
+  | { stage: "saving_raw"; fetched: number; failures: number }
+  | { stage: "loading_candidates" }
+  | { stage: "filtering"; candidates: number }
+  | { stage: "summarizing"; count: number }
+  | { stage: "saving_articles"; accepted: number }
+  | { stage: "revalidating" };
+
+export async function runDailyDigest(
+  onProgress?: (p: DigestProgress) => void,
+): Promise<DigestRunResult> {
   const sb = getServiceClient();
   const today = jstDateString();
 
   // 1. Load active sources
+  onProgress?.({ stage: "loading_sources" });
   const { data: sources, error: srcErr } = await sb
     .from("sources")
     .select("*")
@@ -29,6 +42,7 @@ export async function runDailyDigest(): Promise<DigestRunResult> {
   if (!sources || sources.length === 0) throw new Error("no active sources");
 
   // 2. Fetch RSS in parallel
+  onProgress?.({ stage: "fetching_rss", sources: sources.length });
   const fetchResults = await fetchAllSources(sources as Source[]);
   const allFresh = fetchResults.flatMap((r) => r.articles);
   const failures = fetchResults.filter((r) => r.error);
@@ -40,6 +54,11 @@ export async function runDailyDigest(): Promise<DigestRunResult> {
   }
 
   // 3. Upsert raw_articles
+  onProgress?.({
+    stage: "saving_raw",
+    fetched: allFresh.length,
+    failures: failures.length,
+  });
   if (allFresh.length > 0) {
     const { error: upErr } = await sb
       .from("raw_articles")
@@ -48,6 +67,7 @@ export async function runDailyDigest(): Promise<DigestRunResult> {
   }
 
   // 4. Pull unprocessed articles from the last 24h with source name
+  onProgress?.({ stage: "loading_candidates" });
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: candidates, error: candErr } = await sb
     .from("raw_articles")
@@ -65,6 +85,7 @@ export async function runDailyDigest(): Promise<DigestRunResult> {
     })),
     60,
   );
+  onProgress?.({ stage: "filtering", candidates: filtered.length });
 
   if (filtered.length === 0) {
     console.log("[digest] no candidates after filter");
@@ -72,6 +93,7 @@ export async function runDailyDigest(): Promise<DigestRunResult> {
   }
 
   // 6. Send batch to Gemini
+  onProgress?.({ stage: "summarizing", count: filtered.length });
   const digestInputs: DigestInput[] = filtered.map((c) => ({
     raw_id: c.id,
     source_name: c.source_name,
@@ -108,6 +130,7 @@ export async function runDailyDigest(): Promise<DigestRunResult> {
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
   // 8. Persist
+  onProgress?.({ stage: "saving_articles", accepted: articleRows.length });
   if (articleRows.length > 0) {
     const { error: artErr } = await sb
       .from("articles")
@@ -134,6 +157,7 @@ export async function runDailyDigest(): Promise<DigestRunResult> {
   }
 
   // 9. Revalidate ISR pages
+  onProgress?.({ stage: "revalidating" });
   try {
     revalidatePath("/");
     revalidatePath("/archive");
