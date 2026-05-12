@@ -56,7 +56,9 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: FILTER_RESPONSE_SCHEMA,
-      maxOutputTokens: 4096,
+      // gemini-2.5-flash の思考トークンが maxOutputTokens を消費するため大きめに確保。
+      // 4096 だと 60 件分類前に MAX_TOKENS で打ち切られ JSON が壊れる。
+      maxOutputTokens: 16384,
     },
   });
 
