@@ -1,15 +1,13 @@
 # AIニュース・ダイジェスト
 
-1日2回(JST 6時・18時)に更新する、AI関連トピックの日本語ダイジェストWebアプリ。
+毎朝6時（JST）に更新する、AI関連トピックの日本語ダイジェストWebアプリ。カテゴリ別閲覧・アーカイブ対応。
 
 ## 仕組み
 
-1. **Vercel Cron** が1日2回 `/api/cron/daily-digest` を叩く (`0 9,21 * * *` UTC = JST 06:00 / 18:00)
+1. **Vercel Cron** が毎朝 `/api/cron/daily-digest` を叩く (`0 21 * * *` UTC = JST 06:00)
 2. Supabaseに登録された **RSSソース** を並列で取得 (過去24時間分)
-3. AIキーワードでフィルタ → **Claude API** に2段階でバッチ投入
-   - Stage 1: Haiku でカテゴリ分類・重要度スコアリング
-   - Stage 2: Sonnet で採用記事の日本語要約と総括生成
-4. 採用15件をDBに保存し、ISRで各ページを再検証
+3. AIキーワードでフィルタ → **Gemini 2.5 Flash** にバッチ投入してカテゴリ分類・重要度スコアリング・日本語要約と総括を一括生成
+4. 重要度上位15件をDBに保存し、ISRで各ページを再検証
 
 ## セットアップ
 
@@ -26,9 +24,9 @@ npm install
 3. SQL Editorで `supabase/seed.sql` を実行 (初期RSSソース投入)
 4. Project Settings → API から `URL` / `anon key` / `service_role key` を取得
 
-### 3. Anthropic
+### 3. Google Gemini
 
-- [console.anthropic.com](https://console.anthropic.com) でAPIキー発行
+- [Google AI Studio](https://aistudio.google.com/app/apikey) でAPIキー発行 (無料枠あり)
 
 ### 4. 環境変数
 
@@ -40,7 +38,7 @@ cp .env.local.example .env.local
 
 | 変数名 | 説明 |
 |--------|------|
-| `ANTHROPIC_API_KEY` | Anthropic APIキー |
+| `GEMINI_API_KEY` | Google Gemini APIキー |
 | `NEXT_PUBLIC_SUPABASE_URL` | SupabaseプロジェクトURL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymousキー |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service roleキー (サーバー専用) |
@@ -86,7 +84,7 @@ app/
   archive/[date]/page.tsx       # 指定日 (YYYY-MM-DD)
   category/[slug]/page.tsx      # カテゴリ別
   api/
-    cron/daily-digest/route.ts  # 日次バッチ (RSS取得 → Claude → DB保存)
+    cron/daily-digest/route.ts  # 日次バッチ (RSS取得 → Gemini → DB保存)
     cron/cleanup/route.ts       # 古いレコード削除 (90日/14日)
 components/
   ArticleCard.tsx               # 記事カード
@@ -101,9 +99,9 @@ lib/
   supabase/client.ts            # Anonymousクライアント (ブラウザ用)
   rss/fetcher.ts                # RSSフィード取得
   rss/filter.ts                 # AIキーワードフィルタ
-  claude/client.ts              # Anthropic SDKラッパー
-  claude/digest.ts              # 2段階ダイジェスト生成
-  claude/prompts.ts             # システムプロンプト・ツール定義
+  gemini/client.ts              # Gemini SDKラッパー
+  gemini/digest.ts              # ダイジェスト生成
+  gemini/prompts.ts             # システムプロンプト・スキーマ定義
   queries.ts                    # 共通DBクエリ
   types.ts                      # 共通型定義
   date.ts                       # JST日付ユーティリティ
@@ -127,9 +125,9 @@ vercel.json                     # Cron定義
 
 - **RSSソースを追加**: `supabase/seed.sql` または `sources` テーブルに直接INSERT
 - **特定ソースを一時停止**: `sources` テーブルの `is_active = false` に更新
-- **採用件数の上限変更**: `app/api/cron/daily-digest/route.ts` の `slice(0, 15)`
+- **採用件数の上限変更**: `lib/jobs/digest.ts` の `slice(0, 15)`
 - **AIキーワードフィルタ調整**: `lib/rss/filter.ts` の `AI_KEYWORDS`
-- **要約スタイル変更**: `lib/claude/prompts.ts` (プロンプトキャッシュが無効化されるため変更は慎重に)
+- **要約スタイル変更**: `lib/gemini/prompts.ts`
 
 ## ライセンス
 
