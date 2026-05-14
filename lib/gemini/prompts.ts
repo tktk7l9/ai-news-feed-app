@@ -29,7 +29,7 @@ false にするケース:
 - 研究論文・技術解説
 - API価格変更・機能追加（モデル自体の刷新ではない）
 
-should_include は importance >= 3 かつAI業界に直接関連するもののみ true にしてください。同一トピックが複数ある場合は最も詳しい1件のみ true にしてください。`;
+should_include は importance >= 2 かつAI業界に直接関連するもののみ true にしてください。同一トピックが複数ある場合は最も詳しい1件のみ true にしてください。`;
 
 export const FILTER_RESPONSE_SCHEMA: Schema = {
   type: SchemaType.OBJECT,

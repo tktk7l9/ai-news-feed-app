@@ -103,11 +103,19 @@ export async function runDailyDigest(
   }));
   const digest = await generateDigest(digestInputs);
 
-  // 7. Pick accepted, sort by importance, cap 15
-  const accepted = digest.articles
+  // 7. Pick accepted, sort by importance, cap 15; fall back to importance >= 2 if fewer than 5
+  const MIN_ARTICLE_COUNT = 5;
+  let accepted = digest.articles
     .filter((a) => a.should_include && a.importance >= 3)
     .sort((a, b) => b.importance - a.importance)
     .slice(0, 15);
+
+  if (accepted.length < MIN_ARTICLE_COUNT) {
+    accepted = digest.articles
+      .filter((a) => a.should_include && a.importance >= 2)
+      .sort((a, b) => b.importance - a.importance)
+      .slice(0, 15);
+  }
 
   const inputById = new Map(filtered.map((c) => [c.id, c]));
   const articleRows = accepted

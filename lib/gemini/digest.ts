@@ -79,8 +79,13 @@ export async function generateDigest(inputs: DigestInput[]): Promise<DigestResul
   const classifications = filterParsed.articles ?? [];
 
   // Stage 2: summarize only accepted articles
+  const MIN_ARTICLE_COUNT = 5;
+  const highQualityCount = classifications.filter(
+    (c) => c.should_include && c.importance >= 3,
+  ).length;
+  const importanceThreshold = highQualityCount >= MIN_ARTICLE_COUNT ? 3 : 2;
   const accepted = classifications
-    .filter((c) => c.should_include && c.importance >= 3)
+    .filter((c) => c.should_include && c.importance >= importanceThreshold)
     .sort((a, b) => b.importance - a.importance)
     .slice(0, 15);
 
