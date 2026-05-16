@@ -97,7 +97,7 @@ export default async function HomePage() {
             ))}
           </div>
           <div className="mt-8 text-center">
-            <Link href="/archive" className="text-sm text-amber-700 hover:underline dark:text-amber-500">
+            <Link href="/archive" prefetch={false} className="text-sm text-amber-700 hover:underline dark:text-amber-500">
               過去のアーカイブを見る →
             </Link>
           </div>

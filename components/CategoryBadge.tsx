@@ -17,7 +17,7 @@ export function CategoryBadge({ category, link = true }: { category: Category; l
   const label = CATEGORY_LABELS[category] ?? category;
   if (!link) return <span className={cls}>{label}</span>;
   return (
-    <Link href={`/category/${category}`} className={cls}>
+    <Link href={`/category/${category}`} prefetch={false} className={cls}>
       {label}
     </Link>
   );

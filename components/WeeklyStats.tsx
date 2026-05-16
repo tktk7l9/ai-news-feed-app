@@ -31,13 +31,13 @@ export function WeeklyStats({ stats }: { stats: { category: Category; count: num
         <h2 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase">
           今週のカテゴリ
         </h2>
-        <span className="text-xs font-semibold tabular-nums text-neutral-400 dark:text-neutral-500">
+        <span className="text-xs font-semibold tabular-nums text-neutral-600 dark:text-neutral-400">
           {total}件
         </span>
       </div>
 
       {total === 0 ? (
-        <p className="px-4 py-4 text-xs text-neutral-400">まだ記事がありません</p>
+        <p className="px-4 py-4 text-xs text-neutral-600 dark:text-neutral-400">まだ記事がありません</p>
       ) : (
         <div className="px-4 py-3 space-y-2">
           {stats.map(({ category, count }) => (
@@ -46,7 +46,7 @@ export function WeeklyStats({ stats }: { stats: { category: Category; count: num
                 <span className="text-[11px] text-neutral-600 dark:text-neutral-400">
                   {LABEL_SHORT[category]}
                 </span>
-                <span className="text-[11px] tabular-nums text-neutral-400 dark:text-neutral-500">
+                <span className="text-[11px] tabular-nums text-neutral-600 dark:text-neutral-400">
                   {count}
                 </span>
               </div>

@@ -16,7 +16,7 @@ export function WeeklyTopArticles({ articles }: { articles: Article[] }) {
       </div>
 
       {articles.length === 0 ? (
-        <p className="px-4 py-4 text-xs text-neutral-400">まだ高重要度の記事がありません</p>
+        <p className="px-4 py-4 text-xs text-neutral-600 dark:text-neutral-400">まだ高重要度の記事がありません</p>
       ) : (
         <div className="divide-y divide-black/4 dark:divide-white/5">
           {articles.map((a) => (
@@ -25,24 +25,25 @@ export function WeeklyTopArticles({ articles }: { articles: Article[] }) {
               href={safeHref(a.url)}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={a.title_ja?.trim() || `${a.source_name} の記事`}
               className="block px-4 py-3 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors group"
             >
               <div className="flex items-center justify-between mb-1">
-                <div className="flex gap-px">
+                <div className="flex gap-px" aria-hidden="true">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <span
                       key={i}
                       className={`text-[10px] ${
                         i < a.importance
-                          ? "text-amber-400"
-                          : "text-neutral-200 dark:text-neutral-700"
+                          ? "text-amber-500"
+                          : "text-neutral-300 dark:text-neutral-700"
                       }`}
                     >
                       ★
                     </span>
                   ))}
                 </div>
-                <span className="text-[10px] text-neutral-400 dark:text-neutral-500 tabular-nums">
+                <span className="text-[10px] text-neutral-600 dark:text-neutral-400 tabular-nums">
                   {shortDate(a.digest_date)}
                 </span>
               </div>
@@ -50,9 +51,9 @@ export function WeeklyTopArticles({ articles }: { articles: Article[] }) {
                             text-neutral-800 dark:text-neutral-200
                             group-hover:text-amber-700 dark:group-hover:text-amber-300
                             transition-colors">
-                {a.title_ja}
+                {a.title_ja?.trim() || `${a.source_name} の記事`}
               </p>
-              <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1 truncate">
+              <p className="text-[10px] text-neutral-600 dark:text-neutral-400 mt-1 truncate">
                 {a.source_name}
               </p>
             </a>
