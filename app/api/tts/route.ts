@@ -32,7 +32,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url });
   } catch (e) {
     console.error("[tts] failed", e);
-    const message = e instanceof Error ? e.message : "internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: describeError(e) }, { status: 500 });
   }
+}
+
+function describeError(e: unknown): string {
+  if (!e) return "unknown error";
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  if (typeof e === "object") {
+    const obj = e as Record<string, unknown>;
+    if (typeof obj.message === "string") return obj.message;
+    try {
+      return JSON.stringify(obj);
+    } catch {
+      return String(e);
+    }
+  }
+  return String(e);
 }

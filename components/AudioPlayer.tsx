@@ -75,16 +75,36 @@ export function AudioPlayer({ type, id, initialUrl, label = "読み上げ" }: Pr
   const ariaLabel = playing ? "一時停止" : `${label}を再生`;
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={loading}
-      aria-label={ariaLabel}
-      title={error ?? ariaLabel}
-      className="inline-flex items-center justify-center w-7 h-7 rounded-full text-neutral-500 dark:text-neutral-400 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors disabled:cursor-wait disabled:opacity-60"
-    >
-      {loading ? <SpinnerIcon /> : playing ? <PauseIcon /> : <PlayIcon />}
-    </button>
+    <span className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={loading}
+        aria-label={ariaLabel}
+        title={error ?? ariaLabel}
+        className={[
+          "inline-flex items-center justify-center w-7 h-7 rounded-full transition-colors disabled:cursor-wait disabled:opacity-60",
+          error
+            ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+            : "text-neutral-500 dark:text-neutral-400 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30",
+        ].join(" ")}
+      >
+        {loading ? <SpinnerIcon /> : playing ? <PauseIcon /> : <PlayIcon />}
+      </button>
+      {loading && !error && (
+        <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
+          音声生成中...
+        </span>
+      )}
+      {error && (
+        <span
+          role="alert"
+          className="text-[10px] text-red-600 dark:text-red-400 max-w-[160px] truncate"
+        >
+          {error}
+        </span>
+      )}
+    </span>
   );
 }
 

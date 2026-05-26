@@ -13,7 +13,8 @@ type Progress =
   | { stage: "filtering"; candidates: number }
   | { stage: "summarizing"; count: number }
   | { stage: "saving_articles"; accepted: number }
-  | { stage: "revalidating" };
+  | { stage: "revalidating" }
+  | { stage: "generating_audio"; done: number; total: number };
 
 type StreamEvent =
   | { type: "progress"; progress: Progress }
@@ -44,6 +45,10 @@ function progressLabel(p: Progress): string {
       return `記事を保存中… (${p.accepted}件)`;
     case "revalidating":
       return "ページを再生成中…";
+    case "generating_audio":
+      return p.total > 0
+        ? `音声を生成中… (${p.done}/${p.total})`
+        : "音声生成を準備中…";
   }
 }
 
