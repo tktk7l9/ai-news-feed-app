@@ -63,7 +63,12 @@ export default async function HomePage() {
           {errors.map((msg, i) => (
             <ErrorBanner key={i} message={msg} />
           ))}
-          <DailyOverview date={digest.date} overview={digest.overview_ja} articleCount={digest.article_count} />
+          <DailyOverview
+            date={digest.date}
+            overview={digest.overview_ja}
+            articleCount={digest.article_count}
+            audioUrl={digest.audio_url}
+          />
           <div className="mb-6 flex justify-end">
             <ManualRefreshButton />
           </div>

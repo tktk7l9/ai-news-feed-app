@@ -29,7 +29,12 @@ export default async function ArchiveDay({ params }: { params: Promise<{ date: s
     <div className="max-w-3xl mx-auto px-4 py-8">
       <Link href="/archive" className="text-xs text-neutral-500 hover:text-foreground">← アーカイブに戻る</Link>
       <div className="mt-4">
-        <DailyOverview date={digest.date} overview={digest.overview_ja} articleCount={digest.article_count} />
+        <DailyOverview
+          date={digest.date}
+          overview={digest.overview_ja}
+          articleCount={digest.article_count}
+          audioUrl={digest.audio_url}
+        />
       </div>
       <div className="space-y-4">
         {articles.map((a) => (

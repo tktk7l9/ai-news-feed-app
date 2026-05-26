@@ -31,6 +31,7 @@ export type Article = {
   source_name: string;
   published_at: string | null;
   is_model_release: boolean;
+  audio_url: string | null;
 };
 
 export type DailyDigest = {
@@ -38,6 +39,7 @@ export type DailyDigest = {
   overview_ja: string;
   article_count: number;
   generated_at: string;
+  audio_url: string | null;
 };
 
 export type Source = {
