@@ -37,7 +37,7 @@ export function ArticleCard({ article }: { article: Article }) {
             type="article"
             id={article.id}
             initialUrl={article.audio_url}
-            label="この記事"
+            title={article.title_ja?.trim() || `${article.source_name} の記事`}
           />
         </span>
       </div>

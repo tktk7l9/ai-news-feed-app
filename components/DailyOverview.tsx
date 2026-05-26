@@ -22,7 +22,7 @@ export function DailyOverview({
           type="digest"
           id={date}
           initialUrl={audioUrl}
-          label="ダイジェスト"
+          title={`${formatJpDate(date)} のダイジェスト`}
         />
       </div>
       <p className="text-base leading-relaxed text-neutral-800 dark:text-neutral-200">

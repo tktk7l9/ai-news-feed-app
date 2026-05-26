@@ -1,107 +1,68 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { usePlayer } from "./PlayerContext";
 
 type Props = {
   type: "article" | "digest";
   id: string;
   initialUrl: string | null;
-  label?: string;
+  title: string;
 };
 
-export function AudioPlayer({ type, id, initialUrl, label = "読み上げ" }: Props) {
-  const [url, setUrl] = useState<string | null>(initialUrl);
-  const [loading, setLoading] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+export function AudioPlayer({ type, id, initialUrl, title }: Props) {
+  const { play, pause, playing, current, loadingId, error, isCurrent } =
+    usePlayer();
 
-  const ensureAudioEl = (src: string): HTMLAudioElement => {
-    if (audioRef.current) {
-      if (audioRef.current.src !== src) audioRef.current.src = src;
-      return audioRef.current;
-    }
-    const el = new Audio(src);
-    el.onplay = () => setPlaying(true);
-    el.onpause = () => setPlaying(false);
-    el.onended = () => setPlaying(false);
-    el.onerror = () => {
-      setPlaying(false);
-      setError("再生に失敗しました");
-    };
-    audioRef.current = el;
-    return el;
-  };
+  const targetKey = `${type}:${id}`;
+  const isMine = isCurrent({ type, id });
+  const loading = loadingId === targetKey;
+  const isPlayingMine = isMine && playing;
+  const isLoadedMine = isMine && current !== null;
+  const hasError = isMine && Boolean(error);
 
-  const toggle = async () => {
-    setError(null);
-
-    if (playing) {
-      audioRef.current?.pause();
+  const onClick = () => {
+    if (isPlayingMine) {
+      pause();
       return;
     }
-
-    let playUrl = url;
-    if (!playUrl) {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type, id }),
-        });
-        const data = (await res.json()) as { url?: string; error?: string };
-        if (!res.ok || !data.url) {
-          throw new Error(data.error ?? `HTTP ${res.status}`);
-        }
-        playUrl = data.url;
-        setUrl(playUrl);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "音声の取得に失敗しました");
-        setLoading(false);
-        return;
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    const el = ensureAudioEl(playUrl);
-    void el.play().catch((e) => {
-      setError(e instanceof Error ? e.message : "再生に失敗しました");
-      setPlaying(false);
-    });
+    void play({ type, id, title }, initialUrl);
   };
 
-  const ariaLabel = playing ? "一時停止" : `${label}を再生`;
+  const label = type === "digest" ? "ダイジェスト" : "この記事";
+  const ariaLabel = isPlayingMine
+    ? "一時停止"
+    : isLoadedMine
+      ? `${label}を再開`
+      : `${label}を再生`;
 
   return (
     <span className="inline-flex items-center gap-1">
       <button
         type="button"
-        onClick={toggle}
+        onClick={onClick}
         disabled={loading}
         aria-label={ariaLabel}
-        title={error ?? ariaLabel}
+        title={hasError ? (error ?? ariaLabel) : ariaLabel}
         className={[
           "inline-flex items-center justify-center w-7 h-7 rounded-full transition-colors disabled:cursor-wait disabled:opacity-60",
-          error
+          hasError
             ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
-            : "text-neutral-500 dark:text-neutral-400 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30",
+            : isLoadedMine
+              ? "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
+              : "text-neutral-500 dark:text-neutral-400 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30",
         ].join(" ")}
       >
-        {loading ? <SpinnerIcon /> : playing ? <PauseIcon /> : <PlayIcon />}
+        {loading ? (
+          <SpinnerIcon />
+        ) : isPlayingMine ? (
+          <PauseIcon />
+        ) : (
+          <PlayIcon />
+        )}
       </button>
-      {loading && !error && (
+      {loading && (
         <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
           音声生成中...
-        </span>
-      )}
-      {error && (
-        <span
-          role="alert"
-          className="text-[10px] text-red-600 dark:text-red-400 max-w-[160px] truncate"
-        >
-          {error}
         </span>
       )}
     </span>
