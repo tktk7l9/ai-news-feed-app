@@ -23,6 +23,8 @@ type State = {
   position: number;
   duration: number;
   rate: number;
+  volume: number;
+  muted: boolean;
   error: string | null;
 };
 
@@ -34,6 +36,8 @@ type PlayerValue = State & {
   seek: (seconds: number) => void;
   skip: (deltaSeconds: number) => void;
   setRate: (rate: number) => void;
+  setVolume: (volume: number) => void;
+  toggleMute: () => void;
   close: () => void;
   isCurrent: (target: { type: PlayTarget["type"]; id: string }) => boolean;
 };
@@ -59,6 +63,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     position: 0,
     duration: 0,
     rate: 1,
+    volume: 1,
+    muted: false,
     error: null,
   });
 
@@ -129,6 +135,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.pause();
       audio.src = url;
       audio.playbackRate = state.rate;
+      audio.volume = state.volume;
+      audio.muted = state.muted;
       setState((s) => ({
         ...s,
         current: { ...target, url: url as string },
@@ -143,7 +151,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         })),
       );
     },
-    [getAudio, state.current, state.rate],
+    [getAudio, state.current, state.rate, state.volume, state.muted],
   );
 
   const pause = useCallback(() => {
@@ -177,6 +185,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, rate }));
   }, []);
 
+  const setVolume = useCallback((volume: number) => {
+    const clamped = Math.max(0, Math.min(1, volume));
+    const audio = audioRef.current;
+    if (audio) {
+      audio.volume = clamped;
+      // Adjusting the slider implicitly unmutes — matches typical media UIs.
+      if (clamped > 0) audio.muted = false;
+    }
+    setState((s) => ({
+      ...s,
+      volume: clamped,
+      muted: clamped > 0 ? false : s.muted,
+    }));
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    setState((s) => {
+      const next = !s.muted;
+      const audio = audioRef.current;
+      if (audio) audio.muted = next;
+      return { ...s, muted: next };
+    });
+  }, []);
+
   const close = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
@@ -190,6 +222,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       position: 0,
       duration: 0,
       rate: s.rate,
+      volume: s.volume,
+      muted: s.muted,
       error: null,
     }));
   }, []);
@@ -211,6 +245,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         seek,
         skip,
         setRate,
+        setVolume,
+        toggleMute,
         close,
         isCurrent,
       }}

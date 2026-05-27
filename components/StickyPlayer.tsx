@@ -16,17 +16,23 @@ export function StickyPlayer() {
     position,
     duration,
     rate,
+    volume,
+    muted,
     error,
     togglePlay,
     seek,
     skip,
     setRate,
+    setVolume,
+    toggleMute,
     close,
   } = usePlayer();
 
   if (!current) return null;
 
   const pct = duration > 0 ? (position / duration) * 100 : 0;
+  const effectiveVolume = muted ? 0 : volume;
+  const volPct = effectiveVolume * 100;
 
   return (
     <div
@@ -79,6 +85,32 @@ export function StickyPlayer() {
             >
               <Skip10ForwardIcon />
             </button>
+          </div>
+
+          <div className="inline-flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={toggleMute}
+              aria-label={muted ? "ミュート解除" : "ミュート"}
+              aria-pressed={muted}
+              className="w-8 h-8 inline-flex items-center justify-center rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+            >
+              <VolumeIcon volume={effectiveVolume} />
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={effectiveVolume}
+              onChange={(e) => setVolume(Number.parseFloat(e.target.value))}
+              aria-label="音量"
+              aria-valuetext={`${Math.round(volPct)}%`}
+              className="hidden sm:block w-20 h-1 cursor-pointer appearance-none rounded-full bg-neutral-300 dark:bg-neutral-700"
+              style={{
+                background: `linear-gradient(to right, rgb(180 83 9) 0%, rgb(180 83 9) ${volPct}%, rgb(212 212 212) ${volPct}%, rgb(212 212 212) 100%)`,
+              }}
+            />
           </div>
 
           <label className="hidden sm:inline-flex items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400 shrink-0">
@@ -167,6 +199,25 @@ function Skip10ForwardIcon() {
       <path d="M21 12a9 9 0 1 1-9-9" />
       <polyline points="21 4 21 12 13 12" />
       <text x="12" y="16" fontSize="6" fill="currentColor" stroke="none" textAnchor="middle" fontWeight="700">10</text>
+    </svg>
+  );
+}
+
+function VolumeIcon({ volume }: { volume: number }) {
+  if (volume <= 0) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M11 5L6 9H2v6h4l5 4z" fill="currentColor" stroke="none" />
+        <line x1="23" y1="9" x2="17" y2="15" />
+        <line x1="17" y1="9" x2="23" y2="15" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5L6 9H2v6h4l5 4z" fill="currentColor" stroke="none" />
+      {volume > 0.33 && <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />}
+      {volume > 0.66 && <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />}
     </svg>
   );
 }
