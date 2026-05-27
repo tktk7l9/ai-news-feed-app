@@ -140,7 +140,7 @@ export function StickyPlayer() {
               onChange={(e) => setVolume(Number.parseFloat(e.target.value))}
               aria-label="音量"
               aria-valuetext={`${Math.round(volPct)}%`}
-              className="hidden sm:block w-20 h-1 cursor-pointer appearance-none rounded-full bg-neutral-300 dark:bg-neutral-700"
+              className="range-amber hidden sm:block w-20 h-1 cursor-pointer rounded-full bg-neutral-300 dark:bg-neutral-700"
               style={{
                 background: `linear-gradient(to right, rgb(180 83 9) 0%, rgb(180 83 9) ${volPct}%, rgb(212 212 212) ${volPct}%, rgb(212 212 212) 100%)`,
               }}
@@ -187,7 +187,7 @@ export function StickyPlayer() {
             onChange={(e) => seek(Number.parseFloat(e.target.value))}
             aria-label="再生位置"
             disabled={duration === 0}
-            className="flex-1 h-1 cursor-pointer appearance-none rounded-full bg-neutral-300 dark:bg-neutral-700 disabled:opacity-50"
+            className="range-amber flex-1 h-1 cursor-pointer rounded-full bg-neutral-300 dark:bg-neutral-700 disabled:opacity-50"
             style={{
               background: `linear-gradient(to right, rgb(180 83 9) 0%, rgb(180 83 9) ${pct}%, rgb(212 212 212) ${pct}%, rgb(212 212 212) 100%)`,
             }}
