@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 // CSP: Supabase REST/Realtime と Resend (画像なし) は server side からの呼び出しなので
 // browser CSP の connect-src には Supabase のみ追加。Gemini API も server 経由。
+// TTS 音声は Supabase Storage の公開 URL を <audio> から直接読み込むので media-src も許可。
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
@@ -9,6 +10,7 @@ const csp = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "media-src 'self' https://*.supabase.co",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
