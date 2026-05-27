@@ -85,7 +85,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     position: 0,
     duration: 0,
     rate: 1,
-    volume: 1,
+    volume: 0.5,
     muted: false,
     error: null,
   });
