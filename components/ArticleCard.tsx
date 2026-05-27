@@ -1,20 +1,43 @@
+"use client";
+
 import type { Article } from "@/lib/types";
 import { safeHref } from "@/lib/url";
 import { AudioPlayer } from "./AudioPlayer";
 import { CategoryBadge } from "./CategoryBadge";
+import { usePlayer } from "./PlayerContext";
 
 export function ArticleCard({ article }: { article: Article }) {
+  const { isCurrent, playing } = usePlayer();
   const isRelease = article.is_model_release;
+  const isPlayingNow = isCurrent({ type: "article", id: article.id });
 
   return (
     <article
+      aria-current={isPlayingNow ? "true" : undefined}
       className={[
-        "rounded-xl p-4 transition-colors backdrop-blur-sm",
+        "relative rounded-xl p-4 transition-all backdrop-blur-sm",
         isRelease
           ? "border border-amber-400/70 dark:border-amber-600/50 bg-amber-50/80 dark:bg-amber-950/20 hover:border-amber-500 dark:hover:border-amber-500"
           : "border border-black/6 dark:border-white/10 bg-white/75 dark:bg-black/40 hover:border-amber-300 dark:hover:border-amber-700",
+        isPlayingNow
+          ? "ring-2 ring-amber-500 dark:ring-amber-400 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950 shadow-lg shadow-amber-300/40 dark:shadow-amber-700/30"
+          : "",
       ].join(" ")}
     >
+      {isPlayingNow && (
+        <span
+          aria-hidden="true"
+          className="absolute -top-2 -right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-600 text-white text-[10px] font-bold tracking-wide shadow"
+        >
+          <span
+            className={[
+              "w-1.5 h-1.5 rounded-full bg-white",
+              playing ? "animate-pulse" : "opacity-60",
+            ].join(" ")}
+          />
+          {playing ? "再生中" : "一時停止"}
+        </span>
+      )}
       <div className="flex items-center gap-2 mb-2 text-xs text-neutral-600 dark:text-neutral-400">
         {isRelease && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
