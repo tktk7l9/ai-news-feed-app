@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -14,6 +15,8 @@ export type PlayTarget = {
   id: string;
   title: string;
 };
+
+export type QueueItem = PlayTarget & { initialUrl: string | null };
 
 type Resolved = PlayTarget & { url: string };
 
@@ -28,19 +31,28 @@ type State = {
   error: string | null;
 };
 
-type PlayerValue = State & {
-  loadingId: string | null;
-  play: (target: PlayTarget, initialUrl: string | null) => Promise<void>;
-  pause: () => void;
-  togglePlay: () => void;
-  seek: (seconds: number) => void;
-  skip: (deltaSeconds: number) => void;
-  setRate: (rate: number) => void;
-  setVolume: (volume: number) => void;
-  toggleMute: () => void;
-  close: () => void;
-  isCurrent: (target: { type: PlayTarget["type"]; id: string }) => boolean;
+type QueueState = {
+  queueSize: number;
+  queuePosition: number | null; // 1-based; null when no queue is active
 };
+
+type PlayerValue = State &
+  QueueState & {
+    loadingId: string | null;
+    play: (target: PlayTarget, initialUrl: string | null) => Promise<void>;
+    playQueue: (items: QueueItem[]) => Promise<void>;
+    next: () => void;
+    prev: () => void;
+    pause: () => void;
+    togglePlay: () => void;
+    seek: (seconds: number) => void;
+    skip: (deltaSeconds: number) => void;
+    setRate: (rate: number) => void;
+    setVolume: (volume: number) => void;
+    toggleMute: () => void;
+    close: () => void;
+    isCurrent: (target: { type: PlayTarget["type"]; id: string }) => boolean;
+  };
 
 const Ctx = createContext<PlayerValue | null>(null);
 
@@ -56,7 +68,17 @@ const targetKey = (t: { type: string; id: string }) => `${t.type}:${t.id}`;
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const queueRef = useRef<QueueItem[]>([]);
+  const queueIndexRef = useRef<number>(-1);
+  // Holds the latest "advance to next queue item" closure so the audio
+  // element's 'ended' listener (attached once) can always call into fresh state.
+  const onEndedRef = useRef<() => void>(() => {});
+
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [queueState, setQueueState] = useState<QueueState>({
+    queueSize: 0,
+    queuePosition: null,
+  });
   const [state, setState] = useState<State>({
     current: null,
     playing: false,
@@ -78,9 +100,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     el.addEventListener("pause", () =>
       setState((s) => ({ ...s, playing: false })),
     );
-    el.addEventListener("ended", () =>
-      setState((s) => ({ ...s, playing: false, position: el.duration || 0 })),
-    );
+    el.addEventListener("ended", () => {
+      setState((s) => ({ ...s, playing: false, position: el.duration || 0 }));
+      onEndedRef.current();
+    });
     el.addEventListener("timeupdate", () =>
       setState((s) => ({ ...s, position: el.currentTime })),
     );
@@ -94,7 +117,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return el;
   }, []);
 
-  const play = useCallback(
+  const clearQueue = useCallback(() => {
+    queueRef.current = [];
+    queueIndexRef.current = -1;
+    setQueueState({ queueSize: 0, queuePosition: null });
+  }, []);
+
+  // Core play: loads and starts the audio without touching queue refs.
+  const playCore = useCallback(
     async (target: PlayTarget, initialUrl: string | null) => {
       const audio = getAudio();
       const key = targetKey(target);
@@ -153,6 +183,59 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [getAudio, state.current, state.rate, state.volume, state.muted],
   );
+
+  const play = useCallback(
+    async (target: PlayTarget, initialUrl: string | null) => {
+      clearQueue();
+      await playCore(target, initialUrl);
+    },
+    [clearQueue, playCore],
+  );
+
+  const playIndex = useCallback(
+    async (i: number) => {
+      const item = queueRef.current[i];
+      if (!item) return;
+      queueIndexRef.current = i;
+      setQueueState((q) => ({ ...q, queuePosition: i + 1 }));
+      await playCore(
+        { type: item.type, id: item.id, title: item.title },
+        item.initialUrl,
+      );
+    },
+    [playCore],
+  );
+
+  const playQueue = useCallback(
+    async (items: QueueItem[]) => {
+      if (items.length === 0) return;
+      queueRef.current = items;
+      queueIndexRef.current = -1;
+      setQueueState({ queueSize: items.length, queuePosition: null });
+      await playIndex(0);
+    },
+    [playIndex],
+  );
+
+  const next = useCallback(() => {
+    const i = queueIndexRef.current + 1;
+    if (i < queueRef.current.length) void playIndex(i);
+  }, [playIndex]);
+
+  const prev = useCallback(() => {
+    const i = queueIndexRef.current - 1;
+    if (i >= 0) void playIndex(i);
+  }, [playIndex]);
+
+  // Keep the 'ended' auto-advance closure fresh.
+  useLayoutEffect(() => {
+    onEndedRef.current = () => {
+      const i = queueIndexRef.current + 1;
+      if (queueRef.current.length > 0 && i < queueRef.current.length) {
+        void playIndex(i);
+      }
+    };
+  }, [playIndex]);
 
   const pause = useCallback(() => {
     audioRef.current?.pause();
@@ -216,6 +299,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeAttribute("src");
       audio.load();
     }
+    clearQueue();
     setState((s) => ({
       current: null,
       playing: false,
@@ -226,7 +310,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       muted: s.muted,
       error: null,
     }));
-  }, []);
+  }, [clearQueue]);
 
   const isCurrent = useCallback(
     (t: { type: PlayTarget["type"]; id: string }) =>
@@ -238,8 +322,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{
         ...state,
+        ...queueState,
         loadingId,
         play,
+        playQueue,
+        next,
+        prev,
         pause,
         togglePlay,
         seek,

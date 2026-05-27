@@ -34,6 +34,7 @@ export default async function ArchiveDay({ params }: { params: Promise<{ date: s
           overview={digest.overview_ja}
           articleCount={digest.article_count}
           audioUrl={digest.audio_url}
+          articles={articles}
         />
       </div>
       <div className="space-y-4">

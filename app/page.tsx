@@ -68,6 +68,7 @@ export default async function HomePage() {
             overview={digest.overview_ja}
             articleCount={digest.article_count}
             audioUrl={digest.audio_url}
+            articles={articles}
           />
           <div className="mb-6 flex justify-end">
             <ManualRefreshButton />

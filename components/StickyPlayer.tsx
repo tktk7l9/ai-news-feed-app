@@ -19,12 +19,16 @@ export function StickyPlayer() {
     volume,
     muted,
     error,
+    queueSize,
+    queuePosition,
     togglePlay,
     seek,
     skip,
     setRate,
     setVolume,
     toggleMute,
+    next,
+    prev,
     close,
   } = usePlayer();
 
@@ -33,6 +37,9 @@ export function StickyPlayer() {
   const pct = duration > 0 ? (position / duration) * 100 : 0;
   const effectiveVolume = muted ? 0 : volume;
   const volPct = effectiveVolume * 100;
+  const inQueue = queueSize > 0 && queuePosition !== null;
+  const hasPrev = inQueue && queuePosition > 1;
+  const hasNext = inQueue && queuePosition < queueSize;
 
   return (
     <div
@@ -44,8 +51,13 @@ export function StickyPlayer() {
         {/* Top row: meta + controls */}
         <div className="flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-500 font-bold">
-              {current.type === "digest" ? "ダイジェスト" : "記事"}
+            <div className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-500 font-bold flex items-center gap-2">
+              <span>{current.type === "digest" ? "ダイジェスト" : "記事"}</span>
+              {inQueue && (
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-[9px] tabular-nums normal-case tracking-normal">
+                  連続 {queuePosition}/{queueSize}
+                </span>
+              )}
             </div>
             <div className="text-xs sm:text-sm text-neutral-800 dark:text-neutral-200 truncate">
               {current.title}
@@ -61,6 +73,17 @@ export function StickyPlayer() {
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
+            {inQueue && (
+              <button
+                type="button"
+                onClick={prev}
+                disabled={!hasPrev}
+                aria-label="前のトラック"
+                className="w-8 h-8 inline-flex items-center justify-center rounded-full text-neutral-700 dark:text-neutral-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <PrevTrackIcon />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => skip(-10)}
@@ -85,6 +108,17 @@ export function StickyPlayer() {
             >
               <Skip10ForwardIcon />
             </button>
+            {inQueue && (
+              <button
+                type="button"
+                onClick={next}
+                disabled={!hasNext}
+                aria-label="次のトラック"
+                className="w-8 h-8 inline-flex items-center justify-center rounded-full text-neutral-700 dark:text-neutral-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <NextTrackIcon />
+              </button>
+            )}
           </div>
 
           <div className="inline-flex items-center gap-1 shrink-0">
@@ -199,6 +233,22 @@ function Skip10ForwardIcon() {
       <path d="M21 12a9 9 0 1 1-9-9" />
       <polyline points="21 4 21 12 13 12" />
       <text x="12" y="16" fontSize="6" fill="currentColor" stroke="none" textAnchor="middle" fontWeight="700">10</text>
+    </svg>
+  );
+}
+
+function PrevTrackIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M6 6h2v12H6zM9.5 12l9.5 6V6z" />
+    </svg>
+  );
+}
+
+function NextTrackIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M16 6h2v12h-2zM5 18l9.5-6L5 6z" />
     </svg>
   );
 }
