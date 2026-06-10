@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureArticleAudio, ensureDigestAudio } from "@/lib/jobs/tts";
+import { isSameOriginRequest, checkRateLimit } from "@/lib/api-guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// 認証なしでプレイヤーから叩かれるエンドポイント。Gemini TTS (10 RPM) と
+// service role 経由の DB 書込を起動するため、同一オリジン確認 + レート制限で
+// 乱用コストを上げる。生成済み音声はキャッシュ返却なので正規利用はほぼ素通り。
+const RATE_LIMIT = { perIpPerMinute: 6, globalPerMinute: 20 };
+
 export async function POST(req: NextRequest) {
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  const rate = checkRateLimit(req, "tts", RATE_LIMIT);
+  if (!rate.ok) {
+    console.warn(`[tts] rate limited: ${rate.reason}`);
+    return NextResponse.json({ error: "too many requests" }, { status: 429 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -31,23 +46,14 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ url });
   } catch (e) {
+    // 内部詳細はログのみ。レスポンスは固定文言 (情報漏えい防止)。
     console.error("[tts] failed", e);
-    return NextResponse.json({ error: describeError(e) }, { status: 500 });
-  }
-}
-
-function describeError(e: unknown): string {
-  if (!e) return "unknown error";
-  if (e instanceof Error) return e.message;
-  if (typeof e === "string") return e;
-  if (typeof e === "object") {
-    const obj = e as Record<string, unknown>;
-    if (typeof obj.message === "string") return obj.message;
-    try {
-      return JSON.stringify(obj);
-    } catch {
-      return String(e);
+    if (e instanceof Error && /not found/.test(e.message)) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
     }
+    return NextResponse.json(
+      { error: "internal server error" },
+      { status: 500 },
+    );
   }
-  return String(e);
 }
