@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { FooterUpdatedAt } from "@/components/FooterUpdatedAt";
 import { PlayerShell } from "@/components/PlayerShell";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ai-news-feed-app.vercel.app";
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </footer>
         </PlayerShell>
+        {process.env.VERCEL && <Analytics />}
       </body>
     </html>
   );
