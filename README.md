@@ -1,5 +1,7 @@
 # AIニュース・ダイジェスト
 
+[![Keyway Secrets](https://www.keyway.sh/badge.svg?repo=tktk7l9/ai-news-feed-app)](https://www.keyway.sh/vaults/tktk7l9/ai-news-feed-app)
+
 毎朝6時（JST）に更新する、AI関連トピックの日本語ダイジェストWebアプリ。カテゴリ別閲覧・アーカイブ対応。
 
 ## 仕組み
