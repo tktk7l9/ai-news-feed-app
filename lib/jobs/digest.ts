@@ -3,7 +3,6 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { fetchAllSources } from "@/lib/rss/fetcher";
 import { filterAndCap } from "@/lib/rss/filter";
 import { generateDigest, type DigestInput } from "@/lib/gemini/digest";
-import { generateTtsForDigest } from "@/lib/jobs/tts";
 import { jstDateString } from "@/lib/date";
 import type { Source } from "@/lib/types";
 
@@ -15,7 +14,6 @@ export type DigestRunResult = {
   candidates?: number;
   accepted: number;
   processed?: number;
-  audio?: { generated: number; failed: number; skipped: number };
 };
 
 export type DigestProgress =
@@ -26,8 +24,7 @@ export type DigestProgress =
   | { stage: "filtering"; candidates: number }
   | { stage: "summarizing"; count: number }
   | { stage: "saving_articles"; accepted: number }
-  | { stage: "revalidating" }
-  | { stage: "generating_audio"; done: number; total: number };
+  | { stage: "revalidating" };
 
 export async function runDailyDigest(
   onProgress?: (p: DigestProgress) => void,
@@ -92,17 +89,7 @@ export async function runDailyDigest(
 
   if (filtered.length === 0) {
     console.log("[digest] no candidates after filter");
-    // Still backfill TTS for existing articles without audio (best-effort)
-    let audio: DigestRunResult["audio"];
-    try {
-      onProgress?.({ stage: "generating_audio", done: 0, total: 0 });
-      audio = await generateTtsForDigest(today, (p) => {
-        onProgress?.({ stage: "generating_audio", done: p.done, total: p.total });
-      });
-    } catch (e) {
-      console.warn("[digest] tts backfill failed", e);
-    }
-    return { date: today, processed: 0, accepted: 0, audio };
+    return { date: today, processed: 0, accepted: 0 };
   }
 
   // 6. Send batch to Gemini
@@ -187,25 +174,6 @@ export async function runDailyDigest(
     console.warn("[digest] revalidate failed", e);
   }
 
-  // 10. Generate TTS audio (best-effort; failures don't abort the digest)
-  let audio: DigestRunResult["audio"];
-  try {
-    onProgress?.({ stage: "generating_audio", done: 0, total: 0 });
-    audio = await generateTtsForDigest(today, (p) => {
-      onProgress?.({ stage: "generating_audio", done: p.done, total: p.total });
-    });
-    if (audio.generated > 0) {
-      try {
-        revalidatePath("/");
-        revalidatePath(`/archive/${today}`);
-      } catch (e) {
-        console.warn("[digest] post-tts revalidate failed", e);
-      }
-    }
-  } catch (e) {
-    console.warn("[digest] tts batch failed", e);
-  }
-
   return {
     date: today,
     sources: sources.length,
@@ -213,6 +181,5 @@ export async function runDailyDigest(
     fetched: allFresh.length,
     candidates: filtered.length,
     accepted: articleRows.length,
-    audio,
   };
 }

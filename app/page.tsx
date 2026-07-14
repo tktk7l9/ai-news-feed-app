@@ -3,7 +3,6 @@ import { AiTrivia } from "@/components/AiTrivia";
 import { ArticleCard } from "@/components/ArticleCard";
 import { DailyOverview } from "@/components/DailyOverview";
 import { ErrorBanner } from "@/components/ErrorBanner";
-import { ManualRefreshButton } from "@/components/ManualRefreshButton";
 import { ModelSidebar } from "@/components/ModelSidebar";
 import { WeeklyStats } from "@/components/WeeklyStats";
 import { WeeklyTopArticles } from "@/components/WeeklyTopArticles";
@@ -47,9 +46,6 @@ export default async function HomePage() {
         <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-6">
           ダイジェストが生成されるまで、AI に関する雑学をどうぞ。
         </p>
-        <div className="mb-6">
-          <ManualRefreshButton />
-        </div>
         <AiTrivia initial={pickRandomTrivia()} />
       </div>
     );
@@ -67,12 +63,7 @@ export default async function HomePage() {
             date={digest.date}
             overview={digest.overview_ja}
             articleCount={digest.article_count}
-            audioUrl={digest.audio_url}
-            articles={articles}
           />
-          <div className="mb-6 flex justify-end">
-            <ManualRefreshButton />
-          </div>
 
           <div className="mb-6">
             <AiTrivia initial={pickRandomTrivia()} />
