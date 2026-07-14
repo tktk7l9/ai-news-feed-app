@@ -53,7 +53,7 @@ export default async function HomePage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex gap-8 items-start">
+      <div className="flex flex-col xl:flex-row gap-8 items-start">
         {/* Main feed */}
         <div className="flex-1 min-w-0">
           {errors.map((msg, i) => (
@@ -100,8 +100,8 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Sidebar — xl and wider */}
-        <aside className="hidden xl:flex flex-col gap-4 w-64 shrink-0 sticky top-24">
+        {/* Sidebar — full width stacked below the feed until xl, then a sticky side column */}
+        <aside className="flex flex-col gap-4 w-full xl:w-64 shrink-0 xl:sticky xl:top-24">
           <WeeklyTopArticles articles={weeklyTop} />
           <WeeklyStats stats={weeklyStats} />
           <ModelSidebar />

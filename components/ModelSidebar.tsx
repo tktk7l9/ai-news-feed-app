@@ -8,21 +8,23 @@ const MODELS: {
   tier: Tier;
 }[] = [
   // S — frontier / state-of-the-art
-  { name: "Claude Opus 4.7",   provider: "Anthropic", released: "2025",    score: 92, tier: "S" },
-  { name: "o3",                provider: "OpenAI",    released: "2025-01",  score: 91, tier: "S" },
+  { name: "GPT-5.6 Sol",       provider: "OpenAI",    released: "2026-07", score: 94, tier: "S" },
+  { name: "Gemini 3.5 Pro",    provider: "Google",    released: "2026-07", score: 93, tier: "S" },
+  { name: "Claude Opus 4.8",   provider: "Anthropic", released: "2026",    score: 93, tier: "S" },
+  { name: "Grok 4.5",          provider: "xAI",       released: "2026-07", score: 91, tier: "S" },
   // A — highly capable
-  { name: "Claude Sonnet 4.6", provider: "Anthropic", released: "2025",    score: 85, tier: "A" },
-  { name: "o1",                provider: "OpenAI",    released: "2024-09",  score: 84, tier: "A" },
-  { name: "DeepSeek R1",       provider: "DeepSeek",  released: "2025-01",  score: 83, tier: "A" },
-  { name: "GPT-4o",            provider: "OpenAI",    released: "2024-05",  score: 82, tier: "A" },
-  { name: "Gemini 2.0 Flash",  provider: "Google",    released: "2024-12",  score: 80, tier: "A" },
-  { name: "DeepSeek V3",       provider: "DeepSeek",  released: "2024-12",  score: 79, tier: "A" },
-  { name: "Llama 3.3 70B",     provider: "Meta",      released: "2024-12",  score: 77, tier: "A" },
+  { name: "Claude Sonnet 5",   provider: "Anthropic", released: "2026",    score: 87, tier: "A" },
+  { name: "DeepSeek V4-Pro",   provider: "DeepSeek",  released: "2026-04", score: 85, tier: "A" },
+  { name: "Grok 4.3",          provider: "xAI",       released: "2026-04", score: 84, tier: "A" },
+  { name: "GPT-5.2",           provider: "OpenAI",    released: "2025-12", score: 82, tier: "A" },
+  { name: "Qwen3.7-Max",       provider: "Alibaba",   released: "2026-05", score: 82, tier: "A" },
+  { name: "Mistral Large 3",   provider: "Mistral",   released: "2025-12", score: 79, tier: "A" },
   // B — capable / open-weight
-  { name: "Qwen 2.5 72B",      provider: "Alibaba",   released: "2024-09",  score: 74, tier: "B" },
-  { name: "Mistral Large 2",   provider: "Mistral",   released: "2024-07",  score: 72, tier: "B" },
-  { name: "Grok 2",            provider: "xAI",       released: "2024-08",  score: 71, tier: "B" },
-  { name: "Claude Haiku 4.5",  provider: "Anthropic", released: "2025",    score: 70, tier: "B" },
+  { name: "Claude Haiku 4.5",  provider: "Anthropic", released: "2026",    score: 75, tier: "B" },
+  { name: "DeepSeek V4-Flash", provider: "DeepSeek",  released: "2026-04", score: 73, tier: "B" },
+  { name: "Muse Spark",        provider: "Meta",      released: "2026-04", score: 72, tier: "B" },
+  { name: "Mistral Small 4",   provider: "Mistral",   released: "2026-03", score: 70, tier: "B" },
+  { name: "Qwen3.6",           provider: "Alibaba",   released: "2026-02", score: 68, tier: "B" },
 ];
 
 const TIER_LABEL: Record<Tier, string> = { S: "S — フロンティア", A: "A — 高性能", B: "B — 軽量・OSS" };
@@ -103,7 +105,7 @@ export function ModelSidebar() {
 
       <div className="px-4 py-2 border-t border-black/4 dark:border-white/5">
         <p className="text-[10px] text-neutral-700 dark:text-neutral-400">
-          最終更新: 2025年初頭時点
+          最終更新: 2026年7月時点
         </p>
       </div>
     </section>
