@@ -1,0 +1,33 @@
+/**
+ * AIニュース・ダイジェスト — Cloudflare Workers 設定
+ * https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/
+ *
+ * main は @opennextjs/cloudflare が生成する .open-next/worker.js ではなく、
+ * それをラップした worker.js を指す。生成物は fetch しか持たないため、
+ * Cron Triggers 用の scheduled ハンドラを足す必要があるため。
+ *
+ * CRON_SECRET / GEMINI_API_KEY / SUPABASE_SERVICE_ROLE_KEY などは
+ * wrangler secret で設定する（この設定ファイルには書かない）。
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ai-news-feed-app",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-16",
+  // Next.js の実行に必須。日付は 2024-09-23 以降であること。
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  // vercel.json の crons の置き換え。worker.js の CRON_PATHS と対応させること。
+  "triggers": {
+    "crons": [
+      "0 21 * * *", // 日次ダイジェスト生成（JST 06:00）
+      "0 4 * * *", // 古いレコードの掃除
+    ],
+  },
+  "observability": {
+    "enabled": true,
+  },
+}
