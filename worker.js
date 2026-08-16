@@ -25,7 +25,7 @@ const CRON_PATHS = {
   "0 4 * * *": "/api/cron/cleanup",
 };
 
-export default {
+const worker = {
   fetch: openNextHandler.fetch,
 
   async scheduled(controller, env, ctx) {
@@ -45,3 +45,5 @@ export default {
     );
   },
 };
+
+export default worker;
