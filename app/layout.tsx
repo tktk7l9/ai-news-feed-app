@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { FooterUpdatedAt } from "@/components/FooterUpdatedAt";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ai-news-feed-app.vercel.app";
@@ -63,7 +62,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <FooterUpdatedAt />
           </div>
         </footer>
-        {process.env.VERCEL && <Analytics />}
+        {/* Cloudflare Web Analytics（トークンは公開前提の識別子。秘密ではない） */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts --
+            type="module" のスクリプトは仕様上 defer されるため、パーサーを止めない */}
+        <script
+          type="module"
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon={'{"token": "cd156fbf0fd24da0a12e58fdb4e63828"}'}
+        />
       </body>
     </html>
   );
