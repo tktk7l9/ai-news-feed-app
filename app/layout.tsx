@@ -3,7 +3,10 @@ import Link from "next/link";
 import { FooterUpdatedAt } from "@/components/FooterUpdatedAt";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ai-news-feed-app.vercel.app";
+// Cloudflare Workers へ移行済み。Vercel はアカウントごと 402 で停止しており、
+// 旧 URL を既定値にすると OGP 画像・canonical が死んだページを指してしまう。
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://ai-news-feed-app.saitotakuya0719.workers.dev";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
