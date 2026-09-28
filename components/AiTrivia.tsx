@@ -20,8 +20,8 @@ export function AiTrivia({ initial }: { initial: string }) {
                  dark:border-amber-900/50 dark:bg-amber-950/30"
     >
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-base">💡</span>
-        <span className="text-[11px] font-bold tracking-[0.18em] uppercase text-amber-700 dark:text-amber-400">
+        <span className="text-base" aria-hidden="true">💡</span>
+        <span className="text-xs font-bold tracking-[0.18em] uppercase text-amber-700 dark:text-amber-400">
           AI 雑学
         </span>
       </div>
@@ -32,7 +32,7 @@ export function AiTrivia({ initial }: { initial: string }) {
         <button
           type="button"
           onClick={next}
-          className="text-xs px-3 py-1 rounded-full border border-amber-300/70 text-amber-800
+          className="inline-flex items-center min-h-11 text-sm px-4 rounded-full border border-amber-300/70 text-amber-800
                      hover:bg-amber-100
                      dark:border-amber-800/70 dark:text-amber-300 dark:hover:bg-amber-950/60"
         >

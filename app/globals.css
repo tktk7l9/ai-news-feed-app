@@ -42,3 +42,15 @@ body {
       radial-gradient(circle at 80% 60%, rgba(120, 53, 15, 0.14), transparent 55%);
   }
 }
+
+/* Visible keyboard focus on cream, amber and translucent surfaces (SHIG 94) */
+:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :focus-visible {
+    outline-color: #fbbf24;
+  }
+}
