@@ -63,7 +63,8 @@ export default async function ArchiveDay({ params }: { params: Promise<{ date: s
       <div className="max-w-3xl mx-auto px-4 py-8">
         <BackLink href="/archive">アーカイブに戻る</BackLink>
         <h1 className="text-xl font-semibold mt-4 mb-4">{digestTitle(date)}</h1>
-        <ErrorBanner message={error} />
+        {/* The back link above already leads to the archive, so no second link to it (SHIG 1). */}
+        <ErrorBanner message={error} alternative={null} />
       </div>
     );
   }

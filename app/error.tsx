@@ -7,10 +7,11 @@ import { ReloadButton } from "@/components/ReloadButton";
 // Constructive message with a retry and a way out; technical detail stays in the console (SHIG 55, 60, 11).
 export default function Error({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  // retry() re-fetches the segment; reset() would only re-render the same failed payload.
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error(error);
@@ -27,9 +28,9 @@ export default function Error({
         一時的な問題の可能性があります。もう一度試すか、時間をおいて開き直してください。
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <ReloadButton onRetry={() => reset()} />
+        <ReloadButton onRetry={() => retry()} />
         <Link href="/" className="inline-flex items-center min-h-11 text-sm underline underline-offset-4">
-          トップへ戻る
+          トップに戻る
         </Link>
       </div>
     </div>

@@ -20,7 +20,7 @@ export function ArticleCard({
         // The whole card is the hotspot via the title's stretched ::after (SHIG 93);
         // the focus ring follows the card so it stays visible on tinted backgrounds (SHIG 94).
         "relative rounded-xl p-4 transition-all backdrop-blur-sm",
-        "has-[a[data-card-link]:focus-visible]:ring-2 has-[a[data-card-link]:focus-visible]:ring-amber-600 has-[a[data-card-link]:focus-visible]:ring-offset-2",
+        "has-[a[data-card-link]:focus-visible]:ring-2 has-[a[data-card-link]:focus-visible]:ring-amber-600 has-[a[data-card-link]:focus-visible]:ring-offset-2 has-[a[data-card-link]:focus-visible]:ring-offset-background",
         isRelease
           ? "border border-amber-400/70 dark:border-amber-600/50 bg-amber-50/80 dark:bg-amber-950/20 hover:border-amber-500 dark:hover:border-amber-500"
           : "border border-black/6 dark:border-white/10 bg-white/75 dark:bg-black/40 hover:border-amber-300 dark:hover:border-amber-700",
