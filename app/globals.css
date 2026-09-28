@@ -42,3 +42,19 @@ body {
       radial-gradient(circle at 80% 60%, rgba(120, 53, 15, 0.14), transparent 55%);
   }
 }
+
+/* Visible keyboard focus on cream, amber and translucent surfaces (SHIG 94).
+   Kept in the base layer so utilities such as focus-visible:outline-none still win:
+   an unlayered rule would beat every Tailwind utility and draw a second ring. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid #b45309;
+    outline-offset: 2px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :focus-visible {
+      outline-color: #fbbf24;
+    }
+  }
+}

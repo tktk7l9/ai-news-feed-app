@@ -50,7 +50,7 @@ export function ModelSidebar() {
         <h2 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase">
           主要 AIモデル
         </h2>
-        <p className="text-[10px] text-neutral-600 dark:text-neutral-400 mt-0.5">
+        <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
           スコアはベンチマーク合成値（概算）
         </p>
       </div>
@@ -59,10 +59,10 @@ export function ModelSidebar() {
         {grouped.map(({ tier, models }) => (
           <div key={tier} className="px-4 py-3">
             <div className="flex items-center gap-2 mb-2">
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${TIER_BADGE[tier]}`}>
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${TIER_BADGE[tier]}`}>
                 {tier}
               </span>
-              <span className="text-[10px] text-neutral-600 dark:text-neutral-400">
+              <span className="text-xs text-neutral-600 dark:text-neutral-400">
                 {TIER_LABEL[tier]}
               </span>
             </div>
@@ -74,18 +74,18 @@ export function ModelSidebar() {
                 return (
                   <div key={m.name}>
                     <div className="flex items-baseline justify-between">
-                      <span className="text-[12px] font-medium text-neutral-800 dark:text-neutral-200 leading-tight">
+                      <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200 leading-tight">
                         {m.name}
                       </span>
-                      <span className="text-[10px] font-semibold tabular-nums text-neutral-500 dark:text-neutral-400 ml-2 shrink-0">
+                      <span className="text-xs font-semibold tabular-nums text-neutral-500 dark:text-neutral-400 ml-2 shrink-0">
                         {m.score}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-neutral-600 dark:text-neutral-400 w-16 shrink-0 truncate">
+                      <span className="text-xs text-neutral-600 dark:text-neutral-400 w-16 shrink-0 truncate">
                         {m.provider}
                       </span>
-                      <span className="text-[10px] text-neutral-700 dark:text-neutral-300 shrink-0">
+                      <span className="text-xs text-neutral-700 dark:text-neutral-300 shrink-0">
                         {m.released}
                       </span>
                     </div>
@@ -104,7 +104,7 @@ export function ModelSidebar() {
       </div>
 
       <div className="px-4 py-2 border-t border-black/4 dark:border-white/5">
-        <p className="text-[10px] text-neutral-700 dark:text-neutral-400">
+        <p className="text-xs text-neutral-700 dark:text-neutral-400">
           最終更新: 2026年7月時点
         </p>
       </div>

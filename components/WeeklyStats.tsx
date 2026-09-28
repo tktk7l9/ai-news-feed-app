@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Category } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 
@@ -11,16 +12,7 @@ const BAR_COLOR: Record<Category, string> = {
   other:    "bg-neutral-400 dark:bg-neutral-500",
 };
 
-const LABEL_SHORT: Record<Category, string> = {
-  llm:      "LLM",
-  image:    "画像",
-  research: "研究",
-  product:  "製品",
-  business: "業界",
-  tool:     "ツール",
-  other:    "その他",
-};
-
+// Each row links to its category page, with the same labels the article badges use (SHIG 35, 37, 33, 6).
 export function WeeklyStats({ stats }: { stats: { category: Category; count: number }[] }) {
   const total = stats.reduce((s, r) => s + r.count, 0);
   const max   = stats[0]?.count ?? 1;
@@ -39,26 +31,28 @@ export function WeeklyStats({ stats }: { stats: { category: Category; count: num
       {total === 0 ? (
         <p className="px-4 py-4 text-xs text-neutral-600 dark:text-neutral-400">まだ記事がありません</p>
       ) : (
-        <div className="px-4 py-3 space-y-2">
+        <ul className="px-2 py-2">
           {stats.map(({ category, count }) => (
-            <div key={category}>
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[11px] text-neutral-600 dark:text-neutral-400">
-                  {LABEL_SHORT[category]}
+            <li key={category}>
+              <Link
+                href={`/category/${category}`}
+                prefetch={false}
+                className="group block rounded-lg px-2 py-2 hover:bg-amber-50/60 dark:hover:bg-amber-950/25 transition-colors"
+              >
+                <span className="flex items-center justify-between mb-1 text-xs text-neutral-700 dark:text-neutral-300">
+                  <span className="group-hover:underline underline-offset-2">{CATEGORY_LABELS[category]}</span>
+                  <span className="tabular-nums">{count}件</span>
                 </span>
-                <span className="text-[11px] tabular-nums text-neutral-600 dark:text-neutral-400">
-                  {count}
+                <span className="block h-1.5 bg-black/5 dark:bg-white/5 rounded-full" aria-hidden="true">
+                  <span
+                    className={`block h-1.5 rounded-full transition-all ${BAR_COLOR[category]}`}
+                    style={{ width: `${(count / max) * 100}%` }}
+                  />
                 </span>
-              </div>
-              <div className="h-1.5 bg-black/5 dark:bg-white/5 rounded-full">
-                <div
-                  className={`h-1.5 rounded-full transition-all ${BAR_COLOR[category]}`}
-                  style={{ width: `${(count / max) * 100}%` }}
-                />
-              </div>
-            </div>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </section>
   );

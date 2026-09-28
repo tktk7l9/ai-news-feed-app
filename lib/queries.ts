@@ -1,28 +1,15 @@
 import { tryGetServiceClient } from "@/lib/supabase/server";
 import { jstDateString } from "@/lib/date";
+import { toLoadError } from "@/lib/load-error";
 import type { Article, DailyDigest, Category } from "@/lib/types";
 
-const ENV_MISSING = "Supabase の接続情報が設定されていません (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)";
-
-function describe(err: unknown): string {
-  if (!err) return "unknown error";
-  if (typeof err === "string") return err;
-  if (err instanceof Error) return err.message;
-  if (typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
-    return (err as { message: string }).message;
-  }
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
-}
+const ENV_MISSING = "Supabase env vars missing (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)";
 
 export async function getDigest(
   date: string,
 ): Promise<{ digest: DailyDigest | null; articles: Article[]; error: string | null }> {
   const sb = tryGetServiceClient();
-  if (!sb) return { digest: null, articles: [], error: ENV_MISSING };
+  if (!sb) return { digest: null, articles: [], error: toLoadError("supabase client", ENV_MISSING) };
   const [digestRes, articlesRes] = await Promise.all([
     sb.from("daily_digests").select("*").eq("date", date).maybeSingle(),
     sb
@@ -32,8 +19,8 @@ export async function getDigest(
       .order("is_model_release", { ascending: false })
       .order("importance", { ascending: false }),
   ]);
-  if (digestRes.error) return { digest: null, articles: [], error: `ダイジェスト取得に失敗しました: ${describe(digestRes.error)}` };
-  if (articlesRes.error) return { digest: null, articles: [], error: `記事一覧の取得に失敗しました: ${describe(articlesRes.error)}` };
+  if (digestRes.error) return { digest: null, articles: [], error: toLoadError("digest", digestRes.error) };
+  if (articlesRes.error) return { digest: null, articles: [], error: toLoadError("digest articles", articlesRes.error) };
   return {
     digest: (digestRes.data as DailyDigest) ?? null,
     articles: (articlesRes.data ?? []) as Article[],
@@ -47,14 +34,14 @@ export async function getLatestDigest(): Promise<{
   error: string | null;
 }> {
   const sb = tryGetServiceClient();
-  if (!sb) return { digest: null, articles: [], error: ENV_MISSING };
+  if (!sb) return { digest: null, articles: [], error: toLoadError("supabase client", ENV_MISSING) };
   const { data: latest, error } = await sb
     .from("daily_digests")
     .select("date")
     .order("date", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error) return { digest: null, articles: [], error: `最新ダイジェストの参照に失敗しました: ${describe(error)}` };
+  if (error) return { digest: null, articles: [], error: toLoadError("latest digest", error) };
   if (!latest) return { digest: null, articles: [], error: null };
   return getDigest(latest.date);
 }
@@ -66,13 +53,13 @@ export async function getArchiveDates(
   error: string | null;
 }> {
   const sb = tryGetServiceClient();
-  if (!sb) return { dates: [], error: ENV_MISSING };
+  if (!sb) return { dates: [], error: toLoadError("supabase client", ENV_MISSING) };
   const { data, error } = await sb
     .from("daily_digests")
     .select("date, article_count, overview_ja")
     .order("date", { ascending: false })
     .limit(limit);
-  if (error) return { dates: [], error: `アーカイブ一覧の取得に失敗しました: ${describe(error)}` };
+  if (error) return { dates: [], error: toLoadError("archive dates", error) };
   return {
     dates: (data ?? []) as { date: string; article_count: number; overview_ja: string }[],
     error: null,
@@ -84,7 +71,7 @@ export async function getArticlesByCategory(
   limit = 50,
 ): Promise<{ articles: Article[]; error: string | null }> {
   const sb = tryGetServiceClient();
-  if (!sb) return { articles: [], error: ENV_MISSING };
+  if (!sb) return { articles: [], error: toLoadError("supabase client", ENV_MISSING) };
   const { data, error } = await sb
     .from("articles")
     .select("*")
@@ -92,7 +79,7 @@ export async function getArticlesByCategory(
     .order("digest_date", { ascending: false })
     .order("importance", { ascending: false })
     .limit(limit);
-  if (error) return { articles: [], error: `カテゴリ記事の取得に失敗しました: ${describe(error)}` };
+  if (error) return { articles: [], error: toLoadError("category articles", error) };
   return { articles: (data ?? []) as Article[], error: null };
 }
 
@@ -100,14 +87,14 @@ export async function getRecentArticles(
   limit = 50,
 ): Promise<{ articles: Article[]; error: string | null }> {
   const sb = tryGetServiceClient();
-  if (!sb) return { articles: [], error: ENV_MISSING };
+  if (!sb) return { articles: [], error: toLoadError("supabase client", ENV_MISSING) };
   const { data, error } = await sb
     .from("articles")
     .select("*")
     .order("digest_date", { ascending: false })
     .order("importance", { ascending: false })
     .limit(limit);
-  if (error) return { articles: [], error: `最新記事の取得に失敗しました: ${describe(error)}` };
+  if (error) return { articles: [], error: toLoadError("recent articles", error) };
   return { articles: (data ?? []) as Article[], error: null };
 }
 
@@ -116,13 +103,13 @@ export async function getWeeklyCategoryStats(): Promise<{
   error: string | null;
 }> {
   const sb = tryGetServiceClient();
-  if (!sb) return { stats: [], error: ENV_MISSING };
+  if (!sb) return { stats: [], error: toLoadError("supabase client", ENV_MISSING) };
   const since = jstDateString(new Date(Date.now() - 7 * 86400_000));
   const { data, error } = await sb
     .from("articles")
     .select("category")
     .gte("digest_date", since);
-  if (error) return { stats: [], error: `週次カテゴリ集計の取得に失敗しました: ${describe(error)}` };
+  if (error) return { stats: [], error: toLoadError("weekly category stats", error) };
   if (!data) return { stats: [], error: null };
   const counts = new Map<Category, number>();
   for (const { category } of data) {
@@ -140,7 +127,7 @@ export async function getWeeklyTopArticles(
   limit = 5,
 ): Promise<{ articles: Article[]; error: string | null }> {
   const sb = tryGetServiceClient();
-  if (!sb) return { articles: [], error: ENV_MISSING };
+  if (!sb) return { articles: [], error: toLoadError("supabase client", ENV_MISSING) };
   const since = jstDateString(new Date(Date.now() - 7 * 86400_000));
   const { data, error } = await sb
     .from("articles")
@@ -150,6 +137,25 @@ export async function getWeeklyTopArticles(
     .order("importance", { ascending: false })
     .order("digest_date", { ascending: false })
     .limit(limit);
-  if (error) return { articles: [], error: `週次トップ記事の取得に失敗しました: ${describe(error)}` };
+  if (error) return { articles: [], error: toLoadError("weekly top articles", error) };
   return { articles: (data ?? []) as Article[], error: null };
+}
+
+// Nearest existing digests before and after `date`, for day-to-day paging (SHIG 41, 81).
+export async function getAdjacentDigestDates(
+  date: string,
+): Promise<{ prev: string | null; next: string | null }> {
+  const sb = tryGetServiceClient();
+  if (!sb) return { prev: null, next: null };
+  const [prevRes, nextRes] = await Promise.all([
+    sb.from("daily_digests").select("date").lt("date", date).order("date", { ascending: false }).limit(1),
+    sb.from("daily_digests").select("date").gt("date", date).order("date", { ascending: true }).limit(1),
+  ]);
+  // Paging links are optional; a failure here should not hide the digest itself.
+  if (prevRes.error) toLoadError("previous digest", prevRes.error);
+  if (nextRes.error) toLoadError("next digest", nextRes.error);
+  return {
+    prev: (prevRes.data?.[0] as { date: string } | undefined)?.date ?? null,
+    next: (nextRes.data?.[0] as { date: string } | undefined)?.date ?? null,
+  };
 }

@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { getArchiveDates } from "@/lib/queries";
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = { title: "アーカイブ" };
 
 const DOW_JA = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -16,13 +20,14 @@ export default async function ArchiveIndex() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-bold mb-10 tracking-tight">アーカイブ</h1>
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      <BackLink href="/">トップに戻る</BackLink>
+      <h1 className="text-2xl font-bold mt-4 mb-10 tracking-tight">アーカイブ</h1>
 
       {error ? (
-        <ErrorBanner message={error} />
+        <ErrorBanner message={error} alternative={{ href: "/", label: "トップに戻る" }} />
       ) : dates.length === 0 ? (
-        <p className="text-sm text-neutral-500">まだ過去のダイジェストがありません。</p>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">まだ過去のダイジェストがありません。</p>
       ) : (
         <div className="space-y-12">
           {[...grouped.entries()].map(([ym, items]) => {
@@ -31,7 +36,7 @@ export default async function ArchiveIndex() {
             return (
               <section key={ym}>
                 <div className="flex items-center gap-4 mb-5">
-                  <h2 className="text-xs font-semibold tracking-[0.15em] text-neutral-400 dark:text-neutral-500 shrink-0">
+                  <h2 className="text-xs font-semibold tracking-[0.15em] text-neutral-600 dark:text-neutral-400 shrink-0">
                     {year}年{month}月
                   </h2>
                   <div className="flex-1 h-px bg-black/6 dark:bg-white/6" />
@@ -44,11 +49,12 @@ export default async function ArchiveIndex() {
                     const dow = DOW_JA[jsDate.getDay()];
                     const isSun = jsDate.getDay() === 0;
                     const isSat = jsDate.getDay() === 6;
+                    // Weekend colours keep >= 4.5:1 on the cream background (SHIG 96, 95).
                     const dowColor = isSun
-                      ? "text-rose-400"
+                      ? "text-rose-700 dark:text-rose-300"
                       : isSat
-                        ? "text-amber-400"
-                        : "text-neutral-400 dark:text-neutral-500";
+                        ? "text-amber-800 dark:text-amber-300"
+                        : "text-neutral-600 dark:text-neutral-400";
 
                     return (
                       <Link
@@ -60,15 +66,15 @@ export default async function ArchiveIndex() {
                       >
                         {/* Day number */}
                         <div className="w-8 shrink-0 text-right pt-px">
-                          <span className="text-xl font-light text-neutral-300 dark:text-neutral-600 tabular-nums
-                                           group-hover:text-amber-300 dark:group-hover:text-amber-700 transition-colors">
+                          <span className="text-xl font-light text-neutral-700 dark:text-neutral-300 tabular-nums
+                                           group-hover:text-amber-800 dark:group-hover:text-amber-400 transition-colors">
                             {day}
                           </span>
                         </div>
 
                         {/* Day of week */}
-                        <div className="w-4 shrink-0 pt-1">
-                          <span className={`text-[11px] font-medium ${dowColor}`}>{dow}</span>
+                        <div className="w-5 shrink-0 pt-1">
+                          <span className={`text-xs font-medium ${dowColor}`}>{dow}</span>
                         </div>
 
                         {/* Overview */}
@@ -82,13 +88,13 @@ export default async function ArchiveIndex() {
 
                         {/* Article count + arrow */}
                         <div className="shrink-0 flex items-center gap-2 pt-0.5">
-                          <span className="text-[11px] px-2 py-0.5 rounded-full
+                          <span className="text-xs px-2 py-0.5 rounded-full
                                            bg-neutral-100 dark:bg-neutral-800
-                                           text-neutral-500 dark:text-neutral-400 tabular-nums">
+                                           text-neutral-600 dark:text-neutral-400 tabular-nums">
                             {d.article_count}件
                           </span>
-                          <span className="text-neutral-300 dark:text-neutral-600
-                                           group-hover:text-amber-400 transition-colors text-sm">
+                          <span aria-hidden="true" className="text-neutral-500 dark:text-neutral-400
+                                           group-hover:text-amber-700 transition-colors text-sm">
                             →
                           </span>
                         </div>

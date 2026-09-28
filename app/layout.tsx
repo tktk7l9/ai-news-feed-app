@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { FooterUpdatedAt } from "@/components/FooterUpdatedAt";
+import { NavLink } from "@/components/NavLink";
 import "./globals.css";
 
 // Already moved to Cloudflare Workers. The whole Vercel account is down with 402, so
@@ -47,20 +48,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja" className="h-full antialiased">
       <body className="min-h-full flex flex-col text-foreground bg-radial-warm">
+        {/* Skip link for keyboard users (SHIG 94) */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50
+                     focus:rounded-md focus:bg-background focus:px-4 focus:py-3 focus:text-sm focus:shadow-lg"
+        >
+          本文へスキップ
+        </a>
         <header className="relative z-10 border-b border-black/8 dark:border-white/8 backdrop-blur-sm bg-background/80">
-          <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-            <Link href="/" prefetch={false} className="font-semibold text-lg tracking-tight">
-              AI News<span className="text-amber-600 dark:text-amber-400" aria-hidden="true"> ·</span>{" "}
+          {/* Wraps instead of overflowing when text is enlarged (SHIG 95) */}
+          <div className="max-w-3xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-x-4">
+            <Link href="/" prefetch={false} className="inline-flex flex-wrap items-baseline gap-x-1 min-h-11 py-2 font-semibold text-lg tracking-tight rounded">
+              <span>AI News<span className="text-amber-600 dark:text-amber-400" aria-hidden="true"> ·</span></span>
               <span className="text-sm font-normal text-neutral-600 dark:text-neutral-400">日本語ダイジェスト</span>
             </Link>
-            <nav className="flex items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400">
-              <Link href="/archive" prefetch={false} className="hover:text-foreground transition-colors">アーカイブ</Link>
+            <nav aria-label="メイン" className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+              <NavLink href="/archive">アーカイブ</NavLink>
             </nav>
           </div>
         </header>
-        <main className="relative z-10 flex-1">{children}</main>
+        <main id="main" tabIndex={-1} className="relative z-10 flex-1 focus:outline-none">{children}</main>
         <footer className="relative z-10 border-t border-black/8 dark:border-white/8 mt-12 backdrop-blur-sm bg-background/60">
-          <div className="max-w-3xl mx-auto px-4 py-6 text-xs text-neutral-600 dark:text-neutral-400 flex justify-between">
+          <div className="max-w-3xl mx-auto px-4 py-6 text-xs text-neutral-600 dark:text-neutral-400 flex flex-wrap justify-between gap-x-4 gap-y-1">
             <span>© AI News Digest</span>
             <FooterUpdatedAt />
           </div>

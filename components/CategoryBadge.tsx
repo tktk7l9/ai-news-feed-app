@@ -13,12 +13,18 @@ const STYLES: Record<Category, string> = {
 };
 
 export function CategoryBadge({ category, link = true }: { category: Category; link?: boolean }) {
-  const cls = `inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded ${STYLES[category] ?? STYLES.other}`;
+  const cls = `inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${STYLES[category] ?? STYLES.other}`;
   const label = CATEGORY_LABELS[category] ?? category;
   if (!link) return <span className={cls}>{label}</span>;
+  // The link box is 32px tall around the small badge and sits above the card's stretched link,
+  // so a tap near the badge does not open the article by mistake (SHIG 16, 78, 93).
   return (
-    <Link href={`/category/${category}`} prefetch={false} className={cls}>
-      {label}
+    <Link
+      href={`/category/${category}`}
+      prefetch={false}
+      className="relative z-10 inline-flex items-center min-h-8 -my-1.5 rounded"
+    >
+      <span className={cls}>{label}</span>
     </Link>
   );
 }
