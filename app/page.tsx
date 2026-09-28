@@ -26,20 +26,24 @@ export default async function HomePage() {
   const { stats: weeklyStats, error: weeklyStatsError } = weekly;
   const { articles: weeklyTop, error: weeklyTopError } = weeklyTopRes;
 
-  const errors = [digestError, weeklyStatsError, weeklyTopError].filter(
+  // Messages are already user-facing and identical, so show one banner (SHIG 55, 1).
+  const errors = [...new Set([digestError, weeklyStatsError, weeklyTopError].filter(
     (e): e is string => Boolean(e),
+  ))];
+
+  const archiveLink = (
+    <div className="mt-8 text-center">
+      <Link
+        href="/archive"
+        prefetch={false}
+        className="inline-flex items-center min-h-11 px-4 text-sm text-amber-800 hover:underline dark:text-amber-400"
+      >
+        過去のアーカイブを見る →
+      </Link>
+    </div>
   );
 
-  if (digestError) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-xl font-semibold mb-4">取得に失敗しました</h1>
-        <ErrorBanner message={digestError} />
-      </div>
-    );
-  }
-
-  if (!digest) {
+  if (!digest && !digestError) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <h1 className="text-xl font-semibold mb-2">本日のニュースはまだありません</h1>
@@ -55,55 +59,63 @@ export default async function HomePage() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex flex-col xl:flex-row gap-8 items-start">
         {/* Main feed */}
-        <div className="flex-1 min-w-0">
-          {errors.map((msg, i) => (
-            <ErrorBanner key={i} message={msg} />
+        <div className="flex-1 min-w-0 w-full">
+          {errors.map((msg) => (
+            <ErrorBanner key={msg} message={msg} alternative={null} />
           ))}
-          <DailyOverview
-            date={digest.date}
-            overview={digest.overview_ja}
-            articleCount={digest.article_count}
-          />
 
-          <div className="mb-6">
-            <AiTrivia initial={pickRandomTrivia()} />
-          </div>
+          {digest ? (
+            <>
+              <DailyOverview
+                date={digest.date}
+                overview={digest.overview_ja}
+                articleCount={digest.article_count}
+              />
 
-          {/* New model releases — pinned to top */}
-          {articles.some((a) => a.is_model_release) && (
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                <span className="text-[11px] font-bold tracking-[0.18em] text-amber-700 dark:text-amber-500 uppercase">
-                  新モデルリリース
-                </span>
-                <div className="flex-1 h-px bg-amber-300/50 dark:bg-amber-700/40" />
-              </div>
+              {/* New model releases — pinned to top */}
+              {articles.some((a) => a.is_model_release) && (
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 motion-safe:animate-pulse shrink-0" aria-hidden="true" />
+                    <h2 className="text-xs font-bold tracking-[0.18em] text-amber-800 dark:text-amber-400 uppercase">
+                      新モデルリリース
+                    </h2>
+                    <div className="flex-1 h-px bg-amber-300/50 dark:bg-amber-700/40" />
+                  </div>
+                  <div className="space-y-4">
+                    {articles.filter((a) => a.is_model_release).map((a) => (
+                      <ArticleCard key={a.id} article={a} headingLevel={3} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Regular articles */}
               <div className="space-y-4">
-                {articles.filter((a) => a.is_model_release).map((a) => (
+                {articles.filter((a) => !a.is_model_release).map((a) => (
                   <ArticleCard key={a.id} article={a} />
                 ))}
               </div>
-            </div>
-          )}
 
-          {/* Regular articles */}
-          <div className="space-y-4">
-            {articles.filter((a) => !a.is_model_release).map((a) => (
-              <ArticleCard key={a.id} article={a} />
-            ))}
-          </div>
-          <div className="mt-8 text-center">
-            <Link href="/archive" prefetch={false} className="text-sm text-amber-700 hover:underline dark:text-amber-500">
-              過去のアーカイブを見る →
-            </Link>
-          </div>
+              {/* Trivia sits after the feed so the first article is above the fold (SHIG 20, 67) */}
+              <div className="mt-8">
+                <AiTrivia initial={pickRandomTrivia()} />
+              </div>
+            </>
+          ) : (
+            <h1 className="sr-only">今日のAIニュース</h1>
+          )}
+          {archiveLink}
         </div>
 
         {/* Sidebar — full width stacked below the feed until xl, then a sticky side column */}
-        <aside className="flex flex-col gap-4 w-full xl:w-64 shrink-0 xl:sticky xl:top-24">
-          <WeeklyTopArticles articles={weeklyTop} />
-          <WeeklyStats stats={weeklyStats} />
+        <aside
+          aria-label="今週のまとめ"
+          className="flex flex-col gap-4 w-full xl:w-64 shrink-0 xl:sticky xl:top-24"
+        >
+          {/* A failed panel is hidden rather than shown as "no articles yet" (SHIG 55) */}
+          {!weeklyTopError && <WeeklyTopArticles articles={weeklyTop} />}
+          {!weeklyStatsError && <WeeklyStats stats={weeklyStats} />}
           <ModelSidebar />
         </aside>
       </div>
