@@ -141,3 +141,21 @@ export async function getWeeklyTopArticles(
   return { articles: (data ?? []) as Article[], error: null };
 }
 
+// Nearest existing digests before and after `date`, for day-to-day paging (SHIG 41, 81).
+export async function getAdjacentDigestDates(
+  date: string,
+): Promise<{ prev: string | null; next: string | null }> {
+  const sb = tryGetServiceClient();
+  if (!sb) return { prev: null, next: null };
+  const [prevRes, nextRes] = await Promise.all([
+    sb.from("daily_digests").select("date").lt("date", date).order("date", { ascending: false }).limit(1),
+    sb.from("daily_digests").select("date").gt("date", date).order("date", { ascending: true }).limit(1),
+  ]);
+  // Paging links are optional; a failure here should not hide the digest itself.
+  if (prevRes.error) toLoadError("previous digest", prevRes.error);
+  if (nextRes.error) toLoadError("next digest", nextRes.error);
+  return {
+    prev: (prevRes.data?.[0] as { date: string } | undefined)?.date ?? null,
+    next: (nextRes.data?.[0] as { date: string } | undefined)?.date ?? null,
+  };
+}
