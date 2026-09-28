@@ -3,8 +3,8 @@ import Link from "next/link";
 import { FooterUpdatedAt } from "@/components/FooterUpdatedAt";
 import "./globals.css";
 
-// Cloudflare Workers へ移行済み。Vercel はアカウントごと 402 で停止しており、
-// 旧 URL を既定値にすると OGP 画像・canonical が死んだページを指してしまう。
+// Already moved to Cloudflare Workers. The whole Vercel account is down with 402, so
+// defaulting to the old URL would point the OGP image and canonical at a dead page.
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://ai-news-feed-app.saitotakuya0719.workers.dev";
 
@@ -65,9 +65,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <FooterUpdatedAt />
           </div>
         </footer>
-        {/* Cloudflare Web Analytics（トークンは公開前提の識別子。秘密ではない） */}
+        {/* Cloudflare Web Analytics (the token is a public identifier, not a secret) */}
         {/* eslint-disable-next-line @next/next/no-sync-scripts --
-            type="module" のスクリプトは仕様上 defer されるため、パーサーを止めない */}
+            type="module" scripts are deferred by spec, so this does not block the parser */}
         <script
           type="module"
           src="https://static.cloudflareinsights.com/beacon.min.js"

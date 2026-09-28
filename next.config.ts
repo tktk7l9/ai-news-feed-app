@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
-// CSP: Supabase REST/Realtime と Resend (画像なし) は server side からの呼び出しなので
-// browser CSP の connect-src には Supabase のみ追加。Gemini API も server 経由。
+// CSP: Supabase REST/Realtime and Resend (no images) are called from the server side, so
+// only Supabase is added to the browser CSP connect-src. The Gemini API also goes through the server.
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
