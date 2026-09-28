@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
+import { ReloadButton } from "@/components/ReloadButton";
 
+// Constructive message with a retry and a way out; technical detail stays in the console (SHIG 55, 60, 11).
 export default function Error({
   error,
   reset,
@@ -15,25 +18,20 @@ export default function Error({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="text-xl font-semibold mb-4">エラーが発生しました</h1>
+      <h1 className="text-xl font-semibold mb-4">ページを表示できませんでした</h1>
       <div
         role="alert"
         className="rounded-lg border border-rose-300/70 bg-rose-50/80 px-4 py-3
                    text-sm text-rose-800 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-200"
       >
-        <div className="font-semibold mb-0.5">処理に失敗しました</div>
-        <div className="break-words whitespace-pre-wrap">{error.message || "不明なエラー"}</div>
-        {error.digest && (
-          <div className="mt-2 text-xs opacity-70">digest: {error.digest}</div>
-        )}
+        一時的な問題の可能性があります。もう一度試すか、時間をおいて開き直してください。
       </div>
-      <button
-        onClick={() => reset()}
-        className="mt-4 inline-flex items-center rounded-md border border-neutral-300 px-3 py-1.5 text-sm
-                   hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-      >
-        もう一度試す
-      </button>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <ReloadButton onRetry={() => reset()} />
+        <Link href="/" className="inline-flex items-center min-h-11 text-sm underline underline-offset-4">
+          トップへ戻る
+        </Link>
+      </div>
     </div>
   );
 }
