@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { dateParts } from "@/lib/date";
 import { getArchiveDates } from "@/lib/queries";
 
 export const revalidate = 3600;
@@ -44,11 +45,10 @@ export default async function ArchiveIndex() {
 
                 <div className="space-y-1">
                   {items.map((d) => {
-                    const jsDate = new Date(`${d.date}T00:00:00+09:00`);
-                    const day = jsDate.getDate();
-                    const dow = DOW_JA[jsDate.getDay()];
-                    const isSun = jsDate.getDay() === 0;
-                    const isSat = jsDate.getDay() === 6;
+                    const { day, dow: dowIndex } = dateParts(d.date);
+                    const dow = DOW_JA[dowIndex];
+                    const isSun = dowIndex === 0;
+                    const isSat = dowIndex === 6;
                     // Weekend colours keep >= 4.5:1 on the cream background (SHIG 96, 95).
                     const dowColor = isSun
                       ? "text-rose-700 dark:text-rose-300"
