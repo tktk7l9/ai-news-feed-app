@@ -14,6 +14,16 @@ describe("ModelSidebar", () => {
     expect(screen.getByText(/最終更新: 2026年7月時点/)).toBeInTheDocument();
   });
 
+  it("hides the tier letter badge from assistive tech, since the label next to it repeats the letter", () => {
+    render(<ModelSidebar />);
+    for (const tier of ["S", "A", "B"]) {
+      const badge = screen.getByText(tier, { exact: true });
+      expect(badge).toHaveAttribute("aria-hidden", "true");
+      // The tier is still announced once, through its visible label.
+      expect(screen.getByText(new RegExp(`^${tier} — `))).not.toHaveAttribute("aria-hidden");
+    }
+  });
+
   it("scales the score bars between 60 and 100", () => {
     const { container } = render(<ModelSidebar />);
     const bars = [...container.querySelectorAll<HTMLElement>("div[style]")].map((b) => b.style.width);
