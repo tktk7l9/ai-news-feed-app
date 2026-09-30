@@ -50,8 +50,13 @@ describe("ArchiveDay", () => {
     const pagers = screen.getAllByRole("navigation", { name: "前後の日" });
     expect(pagers).toHaveLength(2);
     for (const nav of pagers) {
-      expect(within(nav).getByRole("link", { name: /前の日（2026年9月29日）/ })).toHaveAttribute("href", "/archive/2026-09-29");
-      expect(within(nav).getByRole("link", { name: /次の日（2026年10月1日）/ })).toHaveAttribute("href", "/archive/2026-10-01");
+      const prev = within(nav).getByRole("link", { name: /前の日（2026年9月29日）/ });
+      const next = within(nav).getByRole("link", { name: /次の日（2026年10月1日）/ });
+      expect(prev).toHaveAttribute("href", "/archive/2026-09-29");
+      expect(next).toHaveAttribute("href", "/archive/2026-10-01");
+      // rel tells browsers and crawlers which way each link goes.
+      expect(prev).toHaveAttribute("rel", "prev");
+      expect(next).toHaveAttribute("rel", "next");
     }
     expect(await generateMetadata(params("2026-09-30"))).toEqual({ title: "2026年9月30日のダイジェスト" });
   });

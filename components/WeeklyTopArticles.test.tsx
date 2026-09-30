@@ -24,6 +24,7 @@ describe("WeeklyTopArticles", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute("href", "https://example.com/post");
     expect(links[0]).toHaveAttribute("target", "_blank");
+    expect(links[0]).toHaveAttribute("rel", "noopener noreferrer");
     expect(links[0]).toHaveTextContent("9/5");
     expect(links[0]).toHaveTextContent("★★★★★");
     expect(links[0]).toHaveTextContent("Example Blog");

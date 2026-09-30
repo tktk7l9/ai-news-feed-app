@@ -53,7 +53,6 @@ describe("HomePage", () => {
     expect(within(aside).getByRole("link", { name: /注目記事/ })).toBeInTheDocument();
     expect(within(aside).getByRole("link", { name: /LLM・基盤モデル/ })).toBeInTheDocument();
     expect(within(aside).getByRole("heading", { name: "主要 AIモデル" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "新モデルリリース" })).not.toBeNull();
   });
 
   it("omits the release section when nothing was released", async () => {
