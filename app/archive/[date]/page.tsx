@@ -26,11 +26,22 @@ export async function generateMetadata({ params }: { params: Promise<{ date: str
 }
 
 // Older day on the left, newer on the right, same order at top and bottom (SHIG 81, 41, 73).
-function DayPager({ prev, next }: { prev: string | null; next: string | null }) {
+// The two pagers are separate landmarks, so each gets its own name for the landmark list (SHIG 94, 59).
+const PAGER_LABEL = { top: "前後の日", bottom: "前後の日（記事の後）" } as const;
+
+function DayPager({
+  prev,
+  next,
+  position,
+}: {
+  prev: string | null;
+  next: string | null;
+  position: keyof typeof PAGER_LABEL;
+}) {
   const cls =
     "inline-flex items-center min-h-11 px-3 rounded-lg text-sm text-amber-800 hover:bg-amber-50/70 dark:text-amber-400 dark:hover:bg-amber-950/30";
   return (
-    <nav aria-label="前後の日" className="flex items-center justify-between gap-2">
+    <nav aria-label={PAGER_LABEL[position]} className="flex items-center justify-between gap-2">
       {prev ? (
         <Link href={`/archive/${prev}`} prefetch={false} className={cls} rel="prev">
           <span aria-hidden="true" className="mr-1">←</span>前の日（{formatJpDate(prev)}）
@@ -75,7 +86,7 @@ export default async function ArchiveDay({ params }: { params: Promise<{ date: s
     <div className="max-w-3xl mx-auto px-4 py-8">
       <BackLink href="/archive">アーカイブに戻る</BackLink>
       <div className="mt-2 mb-4">
-        <DayPager prev={adjacent.prev} next={adjacent.next} />
+        <DayPager prev={adjacent.prev} next={adjacent.next} position="top" />
       </div>
       <DailyOverview
         date={digest.date}
@@ -88,7 +99,7 @@ export default async function ArchiveDay({ params }: { params: Promise<{ date: s
         ))}
       </div>
       <div className="mt-8">
-        <DayPager prev={adjacent.prev} next={adjacent.next} />
+        <DayPager prev={adjacent.prev} next={adjacent.next} position="bottom" />
       </div>
     </div>
   );
