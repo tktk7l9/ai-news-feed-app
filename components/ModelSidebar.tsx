@@ -47,7 +47,7 @@ export function ModelSidebar() {
   return (
     <section className="rounded-2xl overflow-hidden border border-black/6 dark:border-white/8 bg-white/70 dark:bg-black/40 backdrop-blur-md">
       <div className="px-4 pt-4 pb-3 border-b border-black/6 dark:border-white/8">
-        <h2 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase">
+        <h2 className="text-xs font-semibold tracking-widest text-neutral-600 dark:text-neutral-400 uppercase">
           主要 AIモデル
         </h2>
         <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
@@ -59,7 +59,8 @@ export function ModelSidebar() {
         {grouped.map(({ tier, models }) => (
           <div key={tier} className="px-4 py-3">
             <div className="flex items-center gap-2 mb-2">
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${TIER_BADGE[tier]}`}>
+              {/* The letter is repeated in the label that follows, so it is decorative for readers (SHIG 1). */}
+              <span aria-hidden="true" className={`text-xs font-bold px-1.5 py-0.5 rounded ${TIER_BADGE[tier]}`}>
                 {tier}
               </span>
               <span className="text-xs text-neutral-600 dark:text-neutral-400">
@@ -77,7 +78,7 @@ export function ModelSidebar() {
                       <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200 leading-tight">
                         {m.name}
                       </span>
-                      <span className="text-xs font-semibold tabular-nums text-neutral-500 dark:text-neutral-400 ml-2 shrink-0">
+                      <span className="text-xs font-semibold tabular-nums text-neutral-600 dark:text-neutral-400 ml-2 shrink-0">
                         {m.score}
                       </span>
                     </div>

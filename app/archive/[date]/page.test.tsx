@@ -47,8 +47,11 @@ describe("ArchiveDay", () => {
     expect(screen.getByRole("link", { name: /記事A/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /記事B/ })).toBeInTheDocument();
 
-    const pagers = screen.getAllByRole("navigation", { name: "前後の日" });
-    expect(pagers).toHaveLength(2);
+    // Each pager is its own landmark with a distinct name (axe landmark-unique).
+    const pagers = [
+      screen.getByRole("navigation", { name: "前後の日" }),
+      screen.getByRole("navigation", { name: "前後の日（記事の後）" }),
+    ];
     for (const nav of pagers) {
       const prev = within(nav).getByRole("link", { name: /前の日（2026年9月29日）/ });
       const next = within(nav).getByRole("link", { name: /次の日（2026年10月1日）/ });

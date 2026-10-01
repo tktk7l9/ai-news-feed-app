@@ -12,7 +12,7 @@ export function WeeklyTopArticles({ articles }: { articles: Article[] }) {
   return (
     <section className="rounded-2xl border border-black/6 dark:border-white/8 bg-white/70 dark:bg-black/40 backdrop-blur-md overflow-hidden">
       <div className="px-4 pt-4 pb-3 border-b border-black/6 dark:border-white/8">
-        <h2 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-neutral-400 uppercase">
+        <h2 className="text-xs font-semibold tracking-widest text-neutral-600 dark:text-neutral-400 uppercase">
           今週の注目
         </h2>
       </div>
