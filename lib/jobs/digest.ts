@@ -1,8 +1,10 @@
 import { revalidatePath } from "next/cache";
+import { Effect } from "effect";
 import { getServiceClient } from "@/lib/supabase/server";
 import { fetchAllSources } from "@/lib/rss/fetcher";
 import { filterAndCap } from "@/lib/rss/filter";
 import { generateDigest, type DigestInput } from "@/lib/gemini/digest";
+import { DigestStepError, type DigestError, type DigestStep } from "@/lib/jobs/errors";
 import { jstDateString } from "@/lib/date";
 import type { Source } from "@/lib/types";
 
@@ -26,24 +28,46 @@ export type DigestProgress =
   | { stage: "saving_articles"; accepted: number }
   | { stage: "revalidating" };
 
-export async function runDailyDigest(
+/** Runs one Supabase query; both a rejected promise and a returned `error` become a DigestStepError. */
+function db<T>(
+  step: DigestStep,
+  run: () => PromiseLike<{ data: T; error: unknown }>,
+): Effect.Effect<T, DigestStepError> {
+  return Effect.tryPromise({
+    try: async () => run(),
+    catch: (cause) => new DigestStepError({ step, cause }),
+  }).pipe(
+    Effect.flatMap(({ data, error }) =>
+      error ? Effect.fail(new DigestStepError({ step, cause: error })) : Effect.succeed(data),
+    ),
+  );
+}
+
+/** Promise entry used by the cron route. Rejects with a DigestError. */
+export function runDailyDigest(onProgress?: (p: DigestProgress) => void): Promise<DigestRunResult> {
+  return Effect.runPromise(dailyDigest(onProgress));
+}
+
+export const dailyDigest = (
   onProgress?: (p: DigestProgress) => void,
-): Promise<DigestRunResult> {
-  const sb = getServiceClient();
+): Effect.Effect<DigestRunResult, DigestError> =>
+  Effect.gen(function* () {
+    const sb = yield* Effect.try({
+      try: () => getServiceClient(),
+      catch: (cause) => new DigestStepError({ step: "connect", cause }),
+  });
   const today = jstDateString();
 
   // 1. Load active sources
   onProgress?.({ stage: "loading_sources" });
-  const { data: sources, error: srcErr } = await sb
-    .from("sources")
-    .select("*")
-    .eq("is_active", true);
-  if (srcErr) throw srcErr;
-  if (!sources || sources.length === 0) throw new Error("no active sources");
+  const sources = yield* db("load_sources", () => sb.from("sources").select("*").eq("is_active", true));
+  if (!sources || sources.length === 0) {
+    return yield* new DigestStepError({ step: "load_sources", cause: "no active sources" });
+  }
 
   // 2. Fetch RSS in parallel
   onProgress?.({ stage: "fetching_rss", sources: sources.length });
-  const fetchResults = await fetchAllSources(sources as Source[]);
+  const fetchResults = yield* fetchAllSources(sources as Source[]);
   const allFresh = fetchResults.flatMap((r) => r.articles);
   const failures = fetchResults.filter((r) => r.error);
   if (failures.length) {
@@ -60,22 +84,22 @@ export async function runDailyDigest(
     failures: failures.length,
   });
   if (allFresh.length > 0) {
-    const { error: upErr } = await sb
-      .from("raw_articles")
-      .upsert(allFresh, { onConflict: "url", ignoreDuplicates: true });
-    if (upErr) throw upErr;
+    yield* db("save_raw", () =>
+      sb.from("raw_articles").upsert(allFresh, { onConflict: "url", ignoreDuplicates: true }),
+    );
   }
 
   // 4. Pull unprocessed articles from the last 24h with source name
   onProgress?.({ stage: "loading_candidates" });
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: candidates, error: candErr } = await sb
-    .from("raw_articles")
-    .select("id, url, title, raw_content, published_at, source_id, sources(name, weight)")
-    .eq("is_processed", false)
-    .gte("fetched_at", since)
-    .limit(120);
-  if (candErr) throw candErr;
+  const candidates = yield* db("load_candidates", () =>
+    sb
+      .from("raw_articles")
+      .select("id, url, title, raw_content, published_at, source_id, sources(name, weight)")
+      .eq("is_processed", false)
+      .gte("fetched_at", since)
+      .limit(120),
+  );
 
   // 5. AI keyword filter + cap
   const filtered = filterAndCap(
@@ -101,7 +125,7 @@ export async function runDailyDigest(
     url: c.url,
     raw_content: c.raw_content,
   }));
-  const digest = await generateDigest(digestInputs);
+  const digest = yield* generateDigest(digestInputs);
 
   // 7. Pick accepted, sort by importance, cap 15; fall back to importance >= 2 if fewer than 5
   const MIN_ARTICLE_COUNT = 5;
@@ -140,28 +164,26 @@ export async function runDailyDigest(
   // 8. Persist
   onProgress?.({ stage: "saving_articles", accepted: articleRows.length });
   if (articleRows.length > 0) {
-    const { error: artErr } = await sb
-      .from("articles")
-      .upsert(articleRows, { onConflict: "raw_article_id", ignoreDuplicates: true });
-    if (artErr) throw artErr;
+    yield* db("save_articles", () =>
+      sb.from("articles").upsert(articleRows, { onConflict: "raw_article_id", ignoreDuplicates: true }),
+    );
   }
 
-  const { error: digErr } = await sb.from("daily_digests").upsert({
-    date: today,
-    overview_ja: digest.overview_ja,
-    article_count: articleRows.length,
-    generated_at: new Date().toISOString(),
-  });
-  if (digErr) throw digErr;
+  yield* db("save_digest", () =>
+    sb.from("daily_digests").upsert({
+      date: today,
+      overview_ja: digest.overview_ja,
+      article_count: articleRows.length,
+      generated_at: new Date().toISOString(),
+    }),
+  );
 
   // mark processed for ALL filtered candidates (even non-accepted) so we don't reprocess
   const processedIds = filtered.map((c) => c.id);
   if (processedIds.length > 0) {
-    const { error: procErr } = await sb
-      .from("raw_articles")
-      .update({ is_processed: true })
-      .in("id", processedIds);
-    if (procErr) throw procErr;
+    yield* db("mark_processed", () =>
+      sb.from("raw_articles").update({ is_processed: true }).in("id", processedIds),
+    );
   }
 
   // 9. Revalidate ISR pages
@@ -182,4 +204,4 @@ export async function runDailyDigest(
     candidates: filtered.length,
     accepted: articleRows.length,
   };
-}
+  });

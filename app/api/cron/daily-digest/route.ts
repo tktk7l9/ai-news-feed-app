@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
     const result = await runDailyDigest();
     return NextResponse.json(result);
   } catch (e) {
-    console.error("[cron] daily-digest failed", e);
+    // The message names the failed step (DigestStepError / GeminiError); the stack alone told nothing.
+    console.error(`[cron] daily-digest failed: ${e instanceof Error ? e.message : String(e)}`, e);
     return NextResponse.json({ error: "internal server error" }, { status: 500 });
   }
 }
