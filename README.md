@@ -95,10 +95,8 @@ components/
   ModelSidebar.tsx              # 最新AIモデル一覧サイドバー
   WeeklyTopArticles.tsx         # 今週の注目記事サイドバー
   WeeklyStats.tsx               # カテゴリ別週次統計サイドバー
-  WebGLBackground.tsx           # WebGL背景エフェクト
 lib/
   supabase/server.ts            # Service roleクライアント (サーバー専用)
-  supabase/client.ts            # Anonymousクライアント (ブラウザ用)
   rss/fetcher.ts                # RSSフィード取得
   rss/filter.ts                 # AIキーワードフィルタ
   gemini/client.ts              # Gemini SDKラッパー
