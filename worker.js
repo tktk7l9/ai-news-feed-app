@@ -31,7 +31,7 @@ const worker = {
   async scheduled(controller, env, ctx) {
     const path = CRON_PATHS[controller.cron];
     if (!path) {
-      console.error(`[cron] 未知のスケジュール: ${controller.cron}`);
+      console.error(`[cron] unknown schedule: ${controller.cron}`);
       return;
     }
     const request = new Request(`https://ai-news-feed-app.saitotakuya0719.workers.dev${path}`, {
@@ -40,7 +40,7 @@ const worker = {
     ctx.waitUntil(
       openNextHandler.fetch(request, env, ctx).then(
         (res) => console.log(`[cron] ${path} -> ${res.status}`),
-        (err) => console.error(`[cron] ${path} 失敗`, err),
+        (err) => console.error(`[cron] ${path} failed`, err),
       ),
     );
   },
