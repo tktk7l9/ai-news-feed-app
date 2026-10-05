@@ -55,7 +55,7 @@ export class GeminiError extends Data.TaggedError("GeminiError")<{
 }
 
 /** Retries after a failed call: 3 attempts in all, waiting 1s then 2s (no wait after the last). */
-export const GEMINI_RETRIES = 2;
+const GEMINI_RETRIES = 2;
 const retryPolicy = Schedule.exponential("1 second").pipe(
   Schedule.setInputType<GeminiError>(),
   Schedule.tap(({ attempt, duration, input }) =>
@@ -83,7 +83,7 @@ export type DigestInput = {
   raw_content: string | null;
 };
 
-export type DigestArticleResult = {
+type DigestArticleResult = {
   raw_id: string;
   should_include: boolean;
   title_ja: string;

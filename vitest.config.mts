@@ -21,9 +21,6 @@ export default defineConfig({
       include: ["components/**/*.tsx", "app/**/*.tsx"],
       exclude: [
         "**/*.test.*",
-        // WebGL canvas: jsdom has no rendering context, and the component is
-        // currently unused (not imported by any route).
-        "components/WebGLBackground.tsx",
         // Image generation (ImageResponse) runs only in Next's edge/OG pipeline.
         "app/apple-icon.tsx",
         "app/opengraph-image.tsx",

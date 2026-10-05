@@ -48,7 +48,7 @@ export function runDailyDigest(onProgress?: (p: DigestProgress) => void): Promis
   return Effect.runPromise(dailyDigest(onProgress));
 }
 
-export const dailyDigest = (
+const dailyDigest = (
   onProgress?: (p: DigestProgress) => void,
 ): Effect.Effect<DigestRunResult, DigestError> =>
   Effect.gen(function* () {

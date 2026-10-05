@@ -1,5 +1,3 @@
-import type { RawArticle } from "@/lib/types";
-
 const AI_KEYWORDS = [
   // English
   "ai", "a.i.", "artificial intelligence", "machine learning", "deep learning",
@@ -14,7 +12,7 @@ const AI_KEYWORDS = [
 
 const lower = AI_KEYWORDS.map((k) => k.toLowerCase());
 
-export function isAIRelated(article: { title: string; raw_content: string | null }): boolean {
+function isAIRelated(article: { title: string; raw_content: string | null }): boolean {
   const haystack = `${article.title} ${article.raw_content ?? ""}`.toLowerCase();
   return lower.some((k) => haystack.includes(k));
 }

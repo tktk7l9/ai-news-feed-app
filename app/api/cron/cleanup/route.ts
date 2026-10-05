@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 import { getServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -8,18 +8,8 @@ export const maxDuration = 60;
 const DIGEST_KEEP_DAYS = 90;
 const RAW_KEEP_DAYS = 14;
 
-function verifyBearerToken(provided: string | null, secret: string): boolean {
-  if (!provided) return false;
-  const expected = `Bearer ${secret}`;
-  const key = randomBytes(32);
-  const a = createHmac("sha256", key).update(provided).digest();
-  const b = createHmac("sha256", key).update(expected).digest();
-  return timingSafeEqual(a, b);
-}
-
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || !verifyBearerToken(req.headers.get("authorization"), secret)) {
+  if (!isAuthorizedCron(req.headers.get("authorization"), process.env.CRON_SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
