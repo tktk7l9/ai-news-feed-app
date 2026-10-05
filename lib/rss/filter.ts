@@ -1,5 +1,3 @@
-import type { RawArticle } from "@/lib/types";
-
 const AI_KEYWORDS = [
   // English
   "ai", "a.i.", "artificial intelligence", "machine learning", "deep learning",
