@@ -2,9 +2,12 @@ import type { NextConfig } from "next";
 
 // CSP: Supabase REST/Realtime and Resend (no images) are called from the server side, so
 // only Supabase is added to the browser CSP connect-src. The Gemini API also goes through the server.
+// React needs 'unsafe-eval' only in development (error stack reconstruction); production never evals.
+const isDev = process.env.NODE_ENV === "development";
+
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
