@@ -44,6 +44,7 @@ yarn-error.log*
 next-env.d.ts
 .env*.local
 
-# Cloudflare Workers build output and local state
+# Cloudflare Workers build output, local state and local secrets (wrangler dev reads .dev.vars)
 .open-next
 .wrangler
+.dev.vars*

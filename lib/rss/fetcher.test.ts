@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Effect } from "effect";
-import { ParseFeed, fetchAllSources, fetchFeed } from "./fetcher.ts";
+import { MAX_FEED_BYTES, ParseFeed, fetchAllSources, fetchFeed, readTextCapped } from "./fetcher.ts";
 import type { Source } from "../types.ts";
 
 const source = (id: string, feed_url: string) => ({ id, name: id, feed_url }) as unknown as Source;
@@ -109,5 +109,98 @@ test("fetchFeed reports a non-2xx status the way parseURL did", async () => {
     async () => {
       await assert.rejects(fetchFeed("https://blocked.example/feed"), { message: "Status code 429" });
     },
+  );
+});
+
+test("fetchFeed refuses a body whose Content-Length is over the cap without reading it", async () => {
+  let bodyRead = false;
+  // highWaterMark 0: pull only runs when someone reads, so bodyRead tells whether the cap was checked first.
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        bodyRead = true;
+        controller.enqueue(new TextEncoder().encode("<rss/>"));
+        controller.close();
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  await withFetch(
+    (async () =>
+      new Response(body, {
+        status: 200,
+        headers: { "content-length": String(MAX_FEED_BYTES + 1) },
+      })) as typeof fetch,
+    async () => {
+      await assert.rejects(fetchFeed("https://huge.example/feed"), /Feed too large: \d+ bytes/);
+    },
+  );
+  assert.equal(bodyRead, false);
+});
+
+test("readTextCapped stops a chunked body that grows past the cap and cancels the stream", async () => {
+  let cancelled = false;
+  const chunk = new Uint8Array(1024).fill(0x61); // "a" x 1024
+  let sent = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      sent += chunk.byteLength;
+      controller.enqueue(chunk);
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  await assert.rejects(readTextCapped(new Response(body), 4096), /Feed too large: over 4096 bytes/);
+  assert.equal(cancelled, true);
+  assert.ok(sent <= 4096 + chunk.byteLength * 2, "stopped shortly after the cap, did not drain the stream");
+});
+
+test("readTextCapped decodes a multi-byte character split across chunks", async () => {
+  const bytes = new TextEncoder().encode("日本語");
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(bytes.slice(0, 2));
+      controller.enqueue(bytes.slice(2));
+      controller.close();
+    },
+  });
+  assert.equal(await readTextCapped(new Response(body), 1024), "日本語");
+  assert.equal(await readTextCapped(new Response(null), 1024), "");
+});
+
+test("drops items whose link is not an absolute http(s) URL and trims the rest", async () => {
+  const [result] = await run([source("s1", "https://a.example/feed")], async () => ({
+    items: [
+      { link: "javascript:alert(1)", title: "xss", isoDate: recent },
+      { link: "data:text/html,hi", title: "data", isoDate: recent },
+      { link: "/relative/path", title: "relative", isoDate: recent },
+      { link: "  https://a.example/ok  ", title: "  ok  ", isoDate: recent },
+      { link: "https://a.example/long", title: "x".repeat(1000), isoDate: recent },
+    ],
+  }));
+  assert.deepEqual(
+    result.articles.map((a) => [a.url, a.title.length]),
+    [
+      ["https://a.example/ok", 2],
+      ["https://a.example/long", 500],
+    ],
+  );
+});
+
+test("a malformed pubDate becomes null instead of failing the whole feed", async () => {
+  const [result] = await run([source("s1", "https://a.example/feed")], async () => ({
+    items: [
+      { link: "https://a.example/1", title: "bad date", pubDate: "yesterday-ish" },
+      { link: "https://a.example/2", title: "good", isoDate: recent },
+    ],
+  }));
+  assert.equal(result.error, undefined);
+  assert.deepEqual(
+    result.articles.map((a) => [a.title, a.published_at === null]),
+    [
+      ["bad date", true],
+      ["good", false],
+    ],
   );
 });

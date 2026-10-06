@@ -7,7 +7,7 @@ import {
   SUMMARIZE_SYSTEM_PROMPT,
   SUMMARIZE_RESPONSE_SCHEMA,
 } from "./prompts.ts";
-import type { Category } from "@/lib/types";
+import { CATEGORIES, type Category } from "../types.ts";
 
 export type GeminiStage = "filter" | "summarize";
 
@@ -135,8 +135,11 @@ export const generateDigest = (inputs: DigestInput[]): Effect.Effect<DigestResul
       prompt: `以下の記事を分類してください。\n\n${JSON.stringify(filterPayload, null, 2)}`,
     });
 
-    const filterParsed = safeJsonParse<{ articles?: FilterArticle[] }>(filterText, { articles: [] });
-    const classifications = filterParsed.articles ?? [];
+    const filterParsed = safeJsonParse<{ articles?: unknown }>(filterText, { articles: [] });
+    const classifications = normalizeClassifications(
+      filterParsed.articles,
+      new Set(inputs.map((i) => i.raw_id)),
+    );
 
     // Stage 2: summarize only accepted articles
     const MIN_ARTICLE_COUNT = 5;
@@ -152,12 +155,7 @@ export const generateDigest = (inputs: DigestInput[]): Effect.Effect<DigestResul
     if (accepted.length === 0) {
       return {
         overview_ja: NO_NEWS_OVERVIEW,
-        articles: classifications.map((c) => ({
-          ...c,
-          is_model_release: c.is_model_release ?? false,
-          title_ja: "",
-          summary_ja: "",
-        })),
+        articles: classifications.map((c) => ({ ...c, title_ja: "", summary_ja: "" })),
       };
     }
 
@@ -180,27 +178,87 @@ export const generateDigest = (inputs: DigestInput[]): Effect.Effect<DigestResul
       prompt: `以下の記事を日本語で要約し、総括を生成してください。\n\n${JSON.stringify(summarizePayload, null, 2)}`,
     });
 
-    const summaryParsed = safeJsonParse<Partial<{ overview_ja: string; articles: SummarizeArticle[] }>>(
+    const summaryParsed = safeJsonParse<Partial<{ overview_ja: unknown; articles: unknown }>>(
       summarizeText,
       {},
     );
-    const summaryMap = new Map((summaryParsed.articles ?? []).map((s) => [s.raw_id, s]));
+    const summaryMap = normalizeSummaries(summaryParsed.articles);
 
     const articles: DigestArticleResult[] = classifications.map((c) => {
       const s = summaryMap.get(c.raw_id);
       return {
         ...c,
-        is_model_release: c.is_model_release ?? false,
         title_ja: s?.title_ja ?? "",
         summary_ja: s?.summary_ja ?? "",
       };
     });
 
     return {
-      overview_ja: summaryParsed.overview_ja ?? NO_NEWS_OVERVIEW,
+      overview_ja: asText(summaryParsed.overview_ja, MAX_OVERVIEW_CHARS) || NO_NEWS_OVERVIEW,
       articles,
     };
   });
+
+// Model output is untrusted data: feed content reaches the prompt, so a crafted article could
+// steer the reply. Everything below pins the shape before it touches the database (the
+// `importance between 1 and 5` check would otherwise fail the whole batch) or the page.
+const MAX_TITLE_CHARS = 200;
+const MAX_SUMMARY_CHARS = 2000;
+const MAX_OVERVIEW_CHARS = 1000;
+const CATEGORY_SET: ReadonlySet<string> = new Set(CATEGORIES);
+
+/**
+ * Keeps one classification per known raw_id (first wins), coerces the fields and drops ids the
+ * model invented. Exported for tests.
+ */
+export function normalizeClassifications(raw: unknown, knownIds: ReadonlySet<string>): FilterArticle[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: FilterArticle[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const r = item as Record<string, unknown>;
+    const rawId = typeof r.raw_id === "string" ? r.raw_id : "";
+    if (!knownIds.has(rawId) || seen.has(rawId)) continue;
+    seen.add(rawId);
+    out.push({
+      raw_id: rawId,
+      should_include: r.should_include === true,
+      category: typeof r.category === "string" && CATEGORY_SET.has(r.category) ? (r.category as Category) : "other",
+      importance: clampImportance(r.importance),
+      is_model_release: r.is_model_release === true,
+    });
+  }
+  return out;
+}
+
+/** Summaries keyed by raw_id; non-string text becomes "" and long text is cut. Exported for tests. */
+export function normalizeSummaries(raw: unknown): Map<string, SummarizeArticle> {
+  const map = new Map<string, SummarizeArticle>();
+  if (!Array.isArray(raw)) return map;
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r.raw_id !== "string" || map.has(r.raw_id)) continue;
+    map.set(r.raw_id, {
+      raw_id: r.raw_id,
+      title_ja: asText(r.title_ja, MAX_TITLE_CHARS),
+      summary_ja: asText(r.summary_ja, MAX_SUMMARY_CHARS),
+    });
+  }
+  return map;
+}
+
+/** Integer in 1..5; anything unparseable is 1 (noise), never a value the DB check rejects. */
+function clampImportance(value: unknown): number {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(5, Math.round(n)));
+}
+
+function asText(value: unknown, max: number): string {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
 
 function safeJsonParse<T>(text: string, fallback: T): T {
   try {
