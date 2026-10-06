@@ -1,113 +1,68 @@
-type Tier = "S" | "A" | "B";
+import { formatJpDate } from "@/lib/date";
+import { MODELS, MODELS_VERIFIED_AT, type ModelEntry } from "@/lib/models";
+import { ExternalMark } from "./ExternalMark";
 
-const MODELS: {
-  name: string;
-  provider: string;
-  released: string;
-  score: number;
-  tier: Tier;
-}[] = [
-  // S — frontier / state-of-the-art
-  { name: "GPT-5.6 Sol",       provider: "OpenAI",    released: "2026-07", score: 94, tier: "S" },
-  { name: "Gemini 3.5 Pro",    provider: "Google",    released: "2026-07", score: 93, tier: "S" },
-  { name: "Claude Opus 4.8",   provider: "Anthropic", released: "2026",    score: 93, tier: "S" },
-  { name: "Grok 4.5",          provider: "xAI",       released: "2026-07", score: 91, tier: "S" },
-  // A — highly capable
-  { name: "Claude Sonnet 5",   provider: "Anthropic", released: "2026",    score: 87, tier: "A" },
-  { name: "DeepSeek V4-Pro",   provider: "DeepSeek",  released: "2026-04", score: 85, tier: "A" },
-  { name: "Grok 4.3",          provider: "xAI",       released: "2026-04", score: 84, tier: "A" },
-  { name: "GPT-5.2",           provider: "OpenAI",    released: "2025-12", score: 82, tier: "A" },
-  { name: "Qwen3.7-Max",       provider: "Alibaba",   released: "2026-05", score: 82, tier: "A" },
-  { name: "Mistral Large 3",   provider: "Mistral",   released: "2025-12", score: 79, tier: "A" },
-  // B — capable / open-weight
-  { name: "Claude Haiku 4.5",  provider: "Anthropic", released: "2026",    score: 75, tier: "B" },
-  { name: "DeepSeek V4-Flash", provider: "DeepSeek",  released: "2026-04", score: 73, tier: "B" },
-  { name: "Muse Spark",        provider: "Meta",      released: "2026-04", score: 72, tier: "B" },
-  { name: "Mistral Small 4",   provider: "Mistral",   released: "2026-03", score: 70, tier: "B" },
-  { name: "Qwen3.6",           provider: "Alibaba",   released: "2026-02", score: 68, tier: "B" },
+// Two groups named in text, so the split does not depend on colour (SHIG 96).
+const GROUPS: { label: string; pick: (m: ModelEntry) => boolean }[] = [
+  { label: "各社の主力モデル", pick: (m) => !m.openWeights },
+  { label: "オープンウェイト（重みを公開）", pick: (m) => m.openWeights },
 ];
 
-const TIER_LABEL: Record<Tier, string> = { S: "S — フロンティア", A: "A — 高性能", B: "B — 軽量・OSS" };
-const TIER_BADGE: Record<Tier, string> = {
-  S: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
-  A: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
-  B: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
-};
-const TIER_BAR: Record<Tier, string> = {
-  S: "bg-amber-400 dark:bg-amber-500",
-  A: "bg-orange-400 dark:bg-orange-500",
-  B: "bg-neutral-400 dark:bg-neutral-500",
-};
-
-const tiers: Tier[] = ["S", "A", "B"];
-
+// Sourced, dated list of notable models. No scores or rankings: each line is what the
+// vendor says the model is for, with a link to the vendor page it came from (SHIG 1).
 export function ModelSidebar() {
-  const grouped = tiers.map((t) => ({ tier: t, models: MODELS.filter((m) => m.tier === t) }));
+  const verifiedLabel = formatJpDate(MODELS_VERIFIED_AT);
 
   return (
-    <section className="rounded-2xl overflow-hidden border border-black/6 dark:border-white/8 bg-white/70 dark:bg-black/40 backdrop-blur-md">
+    <section
+      aria-labelledby="model-sidebar-heading"
+      className="rounded-2xl overflow-hidden border border-black/6 dark:border-white/8 bg-white/70 dark:bg-black/40 backdrop-blur-md"
+    >
       <div className="px-4 pt-4 pb-3 border-b border-black/6 dark:border-white/8">
-        <h2 className="text-xs font-semibold tracking-widest text-neutral-600 dark:text-neutral-400 uppercase">
-          主要 AIモデル
+        <h2
+          id="model-sidebar-heading"
+          className="text-xs font-semibold tracking-widest text-neutral-600 dark:text-neutral-400 uppercase"
+        >
+          主要モデル（{verifiedLabel}時点）
         </h2>
         <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
-          スコアはベンチマーク合成値（概算）
+          各社の公式発表をもとに作成。名前から公式ページを開けます。
         </p>
       </div>
 
       <div className="divide-y divide-black/4 dark:divide-white/5">
-        {grouped.map(({ tier, models }) => (
-          <div key={tier} className="px-4 py-3">
-            <div className="flex items-center gap-2 mb-2">
-              {/* The letter is repeated in the label that follows, so it is decorative for readers (SHIG 1). */}
-              <span aria-hidden="true" className={`text-xs font-bold px-1.5 py-0.5 rounded ${TIER_BADGE[tier]}`}>
-                {tier}
-              </span>
-              <span className="text-xs text-neutral-600 dark:text-neutral-400">
-                {TIER_LABEL[tier]}
-              </span>
-            </div>
-
-            <div className="space-y-2.5">
-              {models.map((m) => {
-                // score bar: normalize 60–100 → 0–100%
-                const pct = Math.max(0, Math.min(100, (m.score - 60) / 40 * 100));
-                return (
-                  <div key={m.name}>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200 leading-tight">
-                        {m.name}
-                      </span>
-                      <span className="text-xs font-semibold tabular-nums text-neutral-600 dark:text-neutral-400 ml-2 shrink-0">
-                        {m.score}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-neutral-600 dark:text-neutral-400 w-16 shrink-0 truncate">
-                        {m.provider}
-                      </span>
-                      <span className="text-xs text-neutral-700 dark:text-neutral-300 shrink-0">
-                        {m.released}
-                      </span>
-                    </div>
-                    <div className="h-0.5 bg-black/5 dark:bg-white/5 rounded-full mt-1">
-                      <div
-                        className={`h-0.5 rounded-full ${TIER_BAR[tier]}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
+        {GROUPS.map(({ label, pick }) => (
+          <div key={label} className="px-4 py-3">
+            <h3 className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">{label}</h3>
+            <ul className="space-y-2.5">
+              {MODELS.filter(pick).map((m) => (
+                <li key={`${m.vendor}/${m.name}`}>
+                  <a
+                    href={m.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-neutral-800 dark:text-neutral-200 leading-tight underline-offset-2 hover:underline"
+                  >
+                    {m.name}
+                    <ExternalMark />
+                  </a>
+                  <div className="flex items-baseline gap-2 mt-0.5 text-xs text-neutral-600 dark:text-neutral-400">
+                    <span>{m.vendor}</span>
+                    <span aria-hidden="true">・</span>
+                    <time dateTime={m.releasedAt} className="tabular-nums">
+                      {formatJpDate(m.releasedAt)}
+                    </time>
                   </div>
-                );
-              })}
-            </div>
+                  <p className="text-xs text-neutral-700 dark:text-neutral-300 mt-0.5 leading-relaxed">{m.note}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         ))}
       </div>
 
       <div className="px-4 py-2 border-t border-black/4 dark:border-white/5">
-        <p className="text-xs text-neutral-700 dark:text-neutral-400">
-          最終更新: 2026年7月時点
-        </p>
+        <p className="text-xs text-neutral-700 dark:text-neutral-400">日付は各社の発表日・一般提供日です。</p>
       </div>
     </section>
   );

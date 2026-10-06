@@ -52,7 +52,7 @@ describe("HomePage", () => {
     const aside = screen.getByRole("complementary", { name: "今週のまとめ" });
     expect(within(aside).getByRole("link", { name: /注目記事/ })).toBeInTheDocument();
     expect(within(aside).getByRole("link", { name: /LLM・基盤モデル/ })).toBeInTheDocument();
-    expect(within(aside).getByRole("heading", { name: "主要 AIモデル" })).toBeInTheDocument();
+    expect(within(aside).getByRole("heading", { name: "主要モデル（2026年10月6日時点）" })).toBeInTheDocument();
   });
 
   it("omits the release section when nothing was released", async () => {
@@ -75,7 +75,7 @@ describe("HomePage", () => {
     // Failed side panels are hidden rather than shown as empty.
     expect(screen.queryByText("まだ高重要度の記事がありません")).toBeNull();
     expect(screen.queryByText("まだ記事がありません")).toBeNull();
-    expect(screen.getByRole("heading", { name: "主要 AIモデル" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "主要モデル（2026年10月6日時点）" })).toBeInTheDocument();
   });
 
   it("keeps the digest and hides only the failed side panel", async () => {
