@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
-// CSP: Supabase REST/Realtime and Resend (no images) are called from the server side, so
-// only Supabase is added to the browser CSP connect-src. The Gemini API also goes through the server.
+// CSP: Supabase and the Gemini API are only called from the server (Route Handlers and Server
+// Components), so the browser never needs them in connect-src; the only cross-origin request the
+// page makes is the Cloudflare Web Analytics beacon.
 // React needs 'unsafe-eval' only in development (error stack reconstruction); production never evals.
 const isDev = process.env.NODE_ENV === "development";
 
@@ -11,7 +12,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cloudflareinsights.com",
+  "connect-src 'self' https://cloudflareinsights.com",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
