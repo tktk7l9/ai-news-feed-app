@@ -2,10 +2,13 @@ import Parser from "rss-parser";
 import { Cause, Context, Effect } from "effect";
 import type { Source, RawArticle } from "@/lib/types";
 
-const parser = new Parser({
-  timeout: 15_000,
-  headers: { "User-Agent": "ai-news-feed/1.0 (+https://github.com/tktk7l9/ai-news-feed-app)" },
-});
+const parser = new Parser();
+
+const FETCH_TIMEOUT_MS = 15_000;
+const FEED_HEADERS = {
+  "User-Agent": "ai-news-feed/1.0 (+https://github.com/tktk7l9/ai-news-feed-app)",
+  Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+};
 
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
@@ -15,11 +18,27 @@ export type FetchResult = {
   error?: string;
 };
 
-type Feed = Awaited<ReturnType<Parser["parseURL"]>>;
+type Feed = Awaited<ReturnType<Parser["parseString"]>>;
+
+/**
+ * Downloads a feed with fetch() and hands the body to rss-parser. rss-parser's own parseURL
+ * reads the raw socket and cannot decompress, so a server that gzips regardless of
+ * Accept-Encoding (deepmind.google does) fails on it; fetch decodes transparently and is
+ * the native primitive on Cloudflare Workers.
+ */
+export async function fetchFeed(url: string): Promise<Feed> {
+  const res = await fetch(url, {
+    headers: FEED_HEADERS,
+    redirect: "follow",
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`Status code ${res.status}`);
+  return parser.parseString(await res.text());
+}
 
 /** Fetches and parses one feed URL. A Context.Reference so tests can stub the network. */
 export const ParseFeed = Context.Reference<(url: string) => Promise<Feed>>("ai-news-feed/ParseFeed", {
-  defaultValue: () => (url) => parser.parseURL(url),
+  defaultValue: () => fetchFeed,
 });
 
 /**
