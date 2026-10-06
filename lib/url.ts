@@ -1,10 +1,14 @@
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 
-export function safeHref(url: string): string {
+/** True for an absolute http(s) URL; false for javascript:, data:, relative paths and garbage. */
+export function isHttpUrl(url: string): boolean {
   try {
-    const { protocol } = new URL(url);
-    return ALLOWED_PROTOCOLS.has(protocol) ? url : "#";
+    return ALLOWED_PROTOCOLS.has(new URL(url).protocol);
   } catch {
-    return "#";
+    return false;
   }
+}
+
+export function safeHref(url: string): string {
+  return isHttpUrl(url) ? url : "#";
 }

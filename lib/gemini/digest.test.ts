@@ -2,7 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Effect, Fiber } from "effect";
 import { TestClock } from "effect/testing";
-import { GenerateJson, generateDigest, type GenerateJsonRequest } from "./digest.ts";
+import {
+  GenerateJson,
+  generateDigest,
+  normalizeClassifications,
+  normalizeSummaries,
+  type GenerateJsonRequest,
+} from "./digest.ts";
 
 const input = (id: string) => ({
   raw_id: id,
@@ -133,4 +139,60 @@ test("fails with a GeminiError naming the stage after 3 attempts", async () => {
   assert.equal(error._tag, "GeminiError");
   assert.equal(error.stage, "filter");
   assert.equal(error.message, "gemini filter failed: quota exceeded");
+});
+
+test("normalizeClassifications pins category, importance and ids before they reach the database", () => {
+  const known = new Set(["a", "b"]);
+  const result = normalizeClassifications(
+    [
+      { raw_id: "a", should_include: "yes", category: "weapons", importance: 9, is_model_release: "true" },
+      { raw_id: "b", should_include: true, category: "llm", importance: "3.6", is_model_release: true },
+      { raw_id: "b", should_include: true, category: "llm", importance: 5, is_model_release: true },
+      { raw_id: "invented", should_include: true, category: "llm", importance: 5, is_model_release: false },
+      { should_include: true, category: "llm", importance: 5 },
+      "not an object",
+      null,
+    ],
+    known,
+  );
+  assert.deepEqual(result, [
+    { raw_id: "a", should_include: false, category: "other", importance: 5, is_model_release: false },
+    { raw_id: "b", should_include: true, category: "llm", importance: 4, is_model_release: true },
+  ]);
+  assert.deepEqual(normalizeClassifications({ articles: [] }, known), []);
+  assert.deepEqual(normalizeClassifications([{ raw_id: "a", importance: "lots" }], known)[0].importance, 1);
+  assert.deepEqual(normalizeClassifications([{ raw_id: "a", importance: -4 }], known)[0].importance, 1);
+});
+
+test("normalizeSummaries keeps text only, trims it and cuts runaway lengths", () => {
+  const map = normalizeSummaries([
+    { raw_id: "a", title_ja: "  見出し  ", summary_ja: "x".repeat(5000) },
+    { raw_id: "a", title_ja: "duplicate", summary_ja: "ignored" },
+    { raw_id: "b", title_ja: { html: "<b>x</b>" }, summary_ja: 42 },
+    { title_ja: "no id" },
+    7,
+  ]);
+  assert.equal(map.size, 2);
+  assert.equal(map.get("a")?.title_ja, "見出し");
+  assert.equal(map.get("a")?.summary_ja.length, 2000);
+  assert.deepEqual(map.get("b"), { raw_id: "b", title_ja: "", summary_ja: "" });
+  assert.equal(normalizeSummaries("nope").size, 0);
+});
+
+test("a reply with an out-of-range importance and an unknown category still yields a usable digest", async () => {
+  const { impl } = scripted([
+    JSON.stringify({
+      articles: [
+        { raw_id: "a", should_include: true, category: "banana", importance: 42, is_model_release: false },
+        { raw_id: "ghost", should_include: true, category: "llm", importance: 5, is_model_release: true },
+      ],
+    }),
+    JSON.stringify({ overview_ja: 123, articles: [{ raw_id: "a", title_ja: "t", summary_ja: "s" }] }),
+  ]);
+  const result = await run(generateDigest([input("a")]), impl);
+  assert.deepEqual(
+    result.articles.map((a) => [a.raw_id, a.category, a.importance]),
+    [["a", "other", 5]],
+  );
+  assert.match(result.overview_ja, /ありませんでした/);
 });
