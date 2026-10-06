@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Effect } from "effect";
-import { ParseFeed, fetchAllSources } from "./fetcher.ts";
+import { ParseFeed, fetchAllSources, fetchFeed } from "./fetcher.ts";
 import type { Source } from "../types.ts";
 
 const source = (id: string, feed_url: string) => ({ id, name: id, feed_url }) as unknown as Source;
@@ -70,4 +70,44 @@ test("fetches every source in parallel", async () => {
     },
   );
   assert.equal(peak, 3);
+});
+
+const withFetch = async (impl: typeof fetch, body: () => Promise<void>) => {
+  const original = globalThis.fetch;
+  globalThis.fetch = impl;
+  try {
+    await body();
+  } finally {
+    globalThis.fetch = original;
+  }
+};
+
+test("fetchFeed downloads with fetch, follows redirects and parses the body", async () => {
+  let seen: { url: string; init: RequestInit | undefined } | undefined;
+  await withFetch(
+    (async (url, init) => {
+      seen = { url: String(url), init };
+      return new Response(
+        `<rss version="2.0"><channel><title>t</title><item><title>a</title><link>https://a.example/1</link></item></channel></rss>`,
+        { status: 200, headers: { "content-type": "application/rss+xml" } },
+      );
+    }) as typeof fetch,
+    async () => {
+      const feed = await fetchFeed("https://a.example/feed");
+      assert.equal(feed.items[0].link, "https://a.example/1");
+    },
+  );
+  assert.equal(seen?.url, "https://a.example/feed");
+  assert.equal(seen?.init?.redirect, "follow");
+  assert.match((seen?.init?.headers as Record<string, string>)["User-Agent"], /^ai-news-feed\//);
+  assert.ok(seen?.init?.signal instanceof AbortSignal);
+});
+
+test("fetchFeed reports a non-2xx status the way parseURL did", async () => {
+  await withFetch(
+    (async () => new Response("challenge", { status: 429 })) as typeof fetch,
+    async () => {
+      await assert.rejects(fetchFeed("https://blocked.example/feed"), { message: "Status code 429" });
+    },
+  );
 });
