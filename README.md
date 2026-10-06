@@ -118,7 +118,8 @@ vercel.json                     # Cron定義
 - **Supabase RLS**: 全テーブルにRow Level Security設定済み。サービスロールキーはサーバーサイドのみ使用
 - **HTTPセキュリティヘッダー**: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `HSTS`, `Permissions-Policy` を全レスポンスに付与
 - **URL検証**: 記事リンクは `http:`/`https:` スキームのみ許可 (`javascript:` 等を無効化)
-- **RSSフィード**: `http:`/`https:` スキームのみフェッチ許可
+- **RSSフィード**: `http:`/`https:` スキームのみフェッチ許可。1フィードの本文は 8 MB まで・15 秒でタイムアウト。記事リンクも `http:`/`https:` 以外は保存しない
+- **Gemini の出力**: カテゴリ・重要度・raw_id を検証してから保存 (範囲外の値や存在しない id は捨てる)。本文はテキストとして描画し HTML としては扱わない
 - **エラーレスポンス**: 内部エラー詳細 (スタックトレース・DBエラー) は外部に漏洩させずサーバーログのみに記録
 
 ## Tips
@@ -126,6 +127,7 @@ vercel.json                     # Cron定義
 - **RSSソースを追加**: `supabase/seed.sql` または `sources` テーブルに直接INSERT
 - **特定ソースを一時停止**: `sources` テーブルの `is_active = false` に更新
 - **採用件数の上限変更**: `lib/jobs/digest.ts` の `slice(0, 15)`
+- **Gemini に送る候補の選び方**: `lib/jobs/candidates.ts`。ソースの `weight` 降順 → 公開日時の新しい順で並べ、1ソースあたり最大 `PER_SOURCE_CAP` 件 (= 60 ÷ 15 = 4 件) に抑えてから 60 件を送る。arXiv のような大量投稿ソースが他を押し出さないようにするため
 - **AIキーワードフィルタ調整**: `lib/rss/filter.ts` の `AI_KEYWORDS`
 - **要約スタイル変更**: `lib/gemini/prompts.ts`
 

@@ -22,14 +22,8 @@ const AI_KEYWORDS = [
 
 const lower = AI_KEYWORDS.map((k) => k.toLowerCase());
 
-function isAIRelated(article: { title: string; raw_content: string | null }): boolean {
+/** True when the title or body mentions one of AI_KEYWORDS. The ordering and caps live in lib/jobs/candidates.ts. */
+export function isAIRelated(article: { title: string; raw_content: string | null }): boolean {
   const haystack = `${article.title} ${article.raw_content ?? ""}`.toLowerCase();
   return lower.some((k) => haystack.includes(k));
-}
-
-export function filterAndCap<T extends { title: string; raw_content: string | null }>(
-  articles: T[],
-  cap = 60,
-): T[] {
-  return articles.filter(isAIRelated).slice(0, cap);
 }

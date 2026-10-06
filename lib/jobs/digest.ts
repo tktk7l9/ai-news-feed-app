@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { Effect } from "effect";
 import { getServiceClient } from "@/lib/supabase/server";
 import { fetchAllSources } from "@/lib/rss/fetcher";
-import { filterAndCap } from "@/lib/rss/filter";
+import { CANDIDATE_POOL_LIMIT, selectCandidates } from "@/lib/jobs/candidates";
 import { generateDigest, type DigestInput } from "@/lib/gemini/digest";
 import { DigestStepError, type DigestError, type DigestStep } from "@/lib/jobs/errors";
 import { jstDateString } from "@/lib/date";
@@ -89,7 +89,8 @@ const dailyDigest = (
     );
   }
 
-  // 4. Pull unprocessed articles from the last 24h with source name
+  // 4. Pull unprocessed articles from the last 24h with source name and weight.
+  // Newest first so that, should the pool ever overflow the limit, only the oldest rows are cut.
   onProgress?.({ stage: "loading_candidates" });
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const candidates = yield* db("load_candidates", () =>
@@ -98,16 +99,21 @@ const dailyDigest = (
       .select("id, url, title, raw_content, published_at, source_id, sources(name, weight)")
       .eq("is_processed", false)
       .gte("fetched_at", since)
-      .limit(120),
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .limit(CANDIDATE_POOL_LIMIT),
   );
 
-  // 5. AI keyword filter + cap
-  const filtered = filterAndCap(
-    (candidates ?? []).map((c) => ({
-      ...c,
-      source_name: (c as { sources?: { name?: string } }).sources?.name ?? "unknown",
-    })),
-    60,
+  // 5. AI keyword filter, then weight / recency order with a per-source cap (lib/jobs/candidates.ts)
+  const filtered = selectCandidates(
+    (candidates ?? []).map((c) => {
+      const joined = (c as { sources?: { name?: string; weight?: number } }).sources;
+      return {
+        ...c,
+        source_name: joined?.name ?? "unknown",
+        source_weight: typeof joined?.weight === "number" ? joined.weight : 1,
+      };
+    }),
   );
   onProgress?.({ stage: "filtering", candidates: filtered.length });
 
