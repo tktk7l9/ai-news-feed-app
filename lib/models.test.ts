@@ -6,7 +6,7 @@ import { MODELS, MODELS_STALE_AFTER_DAYS, MODELS_VERIFIED_AT, daysSince, parseIS
 // verifiedAt dates with it); once this date is more than MODELS_STALE_AFTER_DAYS past
 // the oldest verifiedAt, the test fails and the list has to be re-checked.
 // It must never run ahead of the real date, which the next test enforces.
-const FRESHNESS_CLOCK = new Date("2026-10-06T00:00:00Z");
+const FRESHNESS_CLOCK = new Date("2026-10-11T00:00:00Z");
 
 test("the freshness clock is not in the future", () => {
   assert.ok(FRESHNESS_CLOCK.getTime() <= Date.now());

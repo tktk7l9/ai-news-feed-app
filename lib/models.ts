@@ -25,7 +25,7 @@ export interface ModelEntry {
 }
 
 /** The day the whole list was last re-checked; shown in the sidebar header. */
-export const MODELS_VERIFIED_AT = "2026-10-06";
+export const MODELS_VERIFIED_AT = "2026-10-11";
 
 /** The list is treated as stale (and the freshness test fails) after this many days. */
 export const MODELS_STALE_AFTER_DAYS = 120;
@@ -38,7 +38,7 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: false,
     note: "OpenAIの最上位モデル。最も難しい一連の作業を最後までこなす用途向け。",
     sourceUrl: "https://developers.openai.com/api/docs/changelog",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "OpenAI",
@@ -47,7 +47,16 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: false,
     note: "複雑なコーディングや専門的な業務を、GPT-6 Astraより低いコストでこなす。",
     sourceUrl: "https://developers.openai.com/api/docs/changelog",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
+  },
+  {
+    vendor: "OpenAI",
+    name: "GPT-6 Luna",
+    releasedAt: "2026-09-22",
+    openWeights: false,
+    note: "OpenAIで最も効率的なモデル。用途を絞った大量の処理向け。",
+    sourceUrl: "https://developers.openai.com/api/docs/models/gpt-6-luna",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "Anthropic",
@@ -56,7 +65,7 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: false,
     note: "高度な推論と、長時間にわたるエージェント型の作業向け。",
     sourceUrl: "https://www.anthropic.com/claude-fable-and-mythos-5-1",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "Anthropic",
@@ -65,7 +74,7 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: false,
     note: "長時間のエージェント型コーディングと知的作業向け。コードベース全体の移行や監査が得意。",
     sourceUrl: "https://www.anthropic.com/claude-opus-5-5",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "Anthropic",
@@ -74,7 +83,16 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: false,
     note: "速さと賢さのバランス型。日常のタスク、バグ修正、資料・表の作成が得意。",
     sourceUrl: "https://www.anthropic.com/claude-sonnet-5-5",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
+  },
+  {
+    vendor: "Anthropic",
+    name: "Claude Haiku 5.5",
+    releasedAt: "2026-10-07",
+    openWeights: false,
+    note: "大量の処理を安く速くこなす小型モデル。分類・抽出・振り分けや、大きなモデルと組むサブエージェントに向く。",
+    sourceUrl: "https://www.anthropic.com/claude-haiku-5-5",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "Google",
@@ -83,7 +101,7 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: false,
     note: "ソフトウェア開発・企業の知的業務・サイバー防御向け。審査済みのサイバー防御者から段階的に提供中。",
     sourceUrl: "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "Google",
@@ -92,7 +110,7 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: false,
     note: "Flash系で最も高性能。長時間のソフトウェア開発やエージェント、複雑な業務フロー向け。",
     sourceUrl: "https://ai.google.dev/gemini-api/docs/changelog",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "SpaceXAI",
@@ -100,17 +118,28 @@ export const MODELS: readonly ModelEntry[] = [
     releasedAt: "2026-09-21",
     openWeights: false,
     note: "SpaceXAI（旧xAI）の最上位。コーディング・エージェント作業・知的作業向け。",
-    sourceUrl: "https://docs.x.ai/developers/grok-4-7",
-    verifiedAt: "2026-10-06",
+    sourceUrl: "https://x.ai/news/grok-4-7",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "Meta",
     name: "Muse Spark 1.3",
     releasedAt: "2026-09-02",
     openWeights: false,
-    note: "Metaの最上位。エージェント作業とコーディング向け。重みは現時点で非公開。",
+    note: "前の版よりエージェント作業とコーディングを強化。重みは現時点で非公開で、公開は今後の予定。",
     sourceUrl: "https://research.meta.ai/blog/introducing-muse-spark-1-3",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
+  },
+  // Public preview API only on 2026-10-11; Mistral says the weights ship at the end of
+  // October 2026. Once they are on Hugging Face, flip openWeights and update the note.
+  {
+    vendor: "Mistral AI",
+    name: "Mistral Large 4",
+    releasedAt: "2026-10-06",
+    openWeights: false,
+    note: "Mistralで最大・最高性能のマルチモーダルMoE（総パラメータ1兆）。APIでプレビュー公開中で、重みは10月末に公開予定。",
+    sourceUrl: "https://mistral.ai/news/mistral-large-4",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "DeepSeek",
@@ -119,7 +148,16 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: true,
     note: "動かすパラメータを絞ったMoEで、速く効率的。重みはMITライセンスで公開。",
     sourceUrl: "https://api-docs.deepseek.com/news/news260910",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
+  },
+  {
+    vendor: "Alibaba (Qwen)",
+    name: "Qwen3.8-2.4T-A95B",
+    releasedAt: "2026-08-12",
+    openWeights: true,
+    note: "Qwen-Max級で初めて重みを公開したモデル。総パラメータ2.4兆のMoEで、テキスト専用。独自ライセンスで公開。",
+    sourceUrl: "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "Alibaba (Qwen)",
@@ -128,7 +166,7 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: true,
     note: "27Bの密モデル。画像・動画の理解、コーディング、エージェント作業。Apache 2.0で公開。",
     sourceUrl: "https://huggingface.co/Qwen/Qwen3.8-27B",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
   },
   {
     vendor: "Mistral AI",
@@ -137,7 +175,7 @@ export const MODELS: readonly ModelEntry[] = [
     openWeights: true,
     note: "128Bの密モデル。指示追従・推論・コーディングを1つの重みで扱う。修正MITライセンスで公開。",
     sourceUrl: "https://mistral.ai/news/vibe-remote-agents-mistral-medium-3-5/",
-    verifiedAt: "2026-10-06",
+    verifiedAt: "2026-10-11",
   },
 ];
 

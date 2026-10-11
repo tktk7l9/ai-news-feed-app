@@ -6,8 +6,8 @@ import { ModelSidebar } from "./ModelSidebar";
 describe("ModelSidebar", () => {
   it("titles the list with the verification date", () => {
     render(<ModelSidebar />);
-    expect(screen.getByRole("heading", { level: 2, name: "主要モデル（2026年10月6日時点）" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "主要モデル（2026年10月6日時点）" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "主要モデル（2026年10月11日時点）" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "主要モデル（2026年10月11日時点）" })).toBeInTheDocument();
   });
 
   it("lists every model with vendor, release date, note and a vendor link that opens safely", () => {
