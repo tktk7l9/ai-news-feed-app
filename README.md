@@ -117,6 +117,7 @@ vercel.json                     # Cron定義
 - **Cronエンドポイント**: `CRON_SECRET` によるBearerトークン認証 (タイミングセーフ比較)
 - **Supabase RLS**: 全テーブルにRow Level Security設定済み。サービスロールキーはサーバーサイドのみ使用
 - **HTTPセキュリティヘッダー**: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `HSTS`, `Permissions-Policy` を全レスポンスに付与
+- **CSP**: 本番の HTML は `worker.js` (Workers のエントリ) を通り、`script-src` の `'unsafe-inline'` をリクエストごとの nonce に置き換え、インライン `<script>` に同じ nonce を付ける (`lib/csp-nonce.ts`)。CSP ヘッダーは常に1本。Cloudflare Web Analytics のビーコンは HTML に書かず、表示後に追加する (`components/Analytics.tsx`)。ブラウザから出る外部通信はこのビーコンだけ (Supabase・Gemini はサーバー側のみ)
 - **URL検証**: 記事リンクは `http:`/`https:` スキームのみ許可 (`javascript:` 等を無効化)
 - **RSSフィード**: `http:`/`https:` スキームのみフェッチ許可。1フィードの本文は 8 MB まで・15 秒でタイムアウト。記事リンクも `http:`/`https:` 以外は保存しない
 - **Gemini の出力**: カテゴリ・重要度・raw_id を検証してから保存 (範囲外の値や存在しない id は捨てる)。本文はテキストとして描画し HTML としては扱わない

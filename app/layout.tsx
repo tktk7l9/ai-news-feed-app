@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Analytics } from "@/components/Analytics";
 import { FooterUpdatedAt } from "@/components/FooterUpdatedAt";
 import { NavLink } from "@/components/NavLink";
 import "./globals.css";
@@ -75,14 +76,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <FooterUpdatedAt />
           </div>
         </footer>
-        {/* Cloudflare Web Analytics (the token is a public identifier, not a secret) */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts --
-            type="module" scripts are deferred by spec, so this does not block the parser */}
-        <script
-          type="module"
-          src="https://static.cloudflareinsights.com/beacon.min.js"
-          data-cf-beacon={'{"token": "cd156fbf0fd24da0a12e58fdb4e63828"}'}
-        />
+        {/* Cloudflare Web Analytics, appended after hydration (no external script in the HTML) */}
+        <Analytics />
       </body>
     </html>
   );
