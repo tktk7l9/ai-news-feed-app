@@ -23,6 +23,7 @@ test("every response carries the hardening headers", async () => {
   assert.equal(h.get("X-Content-Type-Options"), "nosniff");
   assert.equal(h.get("X-Frame-Options"), "DENY");
   assert.equal(h.get("Referrer-Policy"), "strict-origin-when-cross-origin");
+  assert.equal(h.get("Cross-Origin-Opener-Policy"), "same-origin");
   assert.match(h.get("Strict-Transport-Security") ?? "", /max-age=\d{8,}; includeSubDomains; preload/);
   assert.match(h.get("Permissions-Policy") ?? "", /camera=\(\)/);
 });
