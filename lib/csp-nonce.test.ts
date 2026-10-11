@@ -5,6 +5,7 @@ import {
   applyScriptNonce,
   createNonce,
   CSP_HEADER,
+  isInlineJavaScript,
   type Rewriter,
   type ScriptElement,
   withScriptNonce,
@@ -35,10 +36,16 @@ function fakeRewriter() {
   return { rewriter: () => rewriter, calls, transformed };
 }
 
+/** A fake <script> element. Like HTMLRewriter, attribute names are matched case-insensitively. */
 function script(attrs: Record<string, string>) {
+  const find = (name: string) => Object.keys(attrs).find((k) => k.toLowerCase() === name.toLowerCase());
   return {
     attrs,
-    hasAttribute: (name: string) => name in attrs,
+    hasAttribute: (name: string) => find(name) !== undefined,
+    getAttribute: (name: string) => {
+      const key = find(name);
+      return key === undefined ? null : attrs[key];
+    },
     setAttribute(name: string, value: string) {
       attrs[name] = value;
     },
@@ -90,12 +97,59 @@ describe("withScriptNonce", () => {
   });
 });
 
+describe("isInlineJavaScript", () => {
+  const cases: [string, Record<string, string>, boolean][] = [
+    // Inline classic / module JavaScript: needs the nonce.
+    ["no type (Next's RSC payload and bootstrap)", {}, true],
+    ["empty type", { type: "" }, true],
+    ["text/javascript", { type: "text/javascript" }, true],
+    ["application/javascript", { type: "application/javascript" }, true],
+    ["a legacy JavaScript MIME type", { type: "text/x-ecmascript" }, true],
+    ["a JavaScript MIME type in another case, padded with ASCII whitespace", { type: " \tText/JavaScript\n" }, true],
+    ["module", { type: "module" }, true],
+    ["MODULE", { type: "MODULE" }, true],
+    ["an empty language attribute", { language: "" }, true],
+    // External scripts: 'self' and the host sources decide, never the nonce.
+    ["src", { src: "/_next/static/chunks/a.js" }, false],
+    ["SRC in upper case", { SRC: "https://evil.example/x.js" }, false],
+    ["src with a module type", { src: "/a.js", type: "module" }, false],
+    ["href (SVG <script>)", { href: "https://evil.example/x.js" }, false],
+    ["xlink:href (SVG <script>)", { "xlink:href": "https://evil.example/x.js" }, false],
+    ["an empty href", { href: "" }, false],
+    // Data blocks and other non-JavaScript types never run as scripts.
+    ["application/ld+json", { type: "application/ld+json" }, false],
+    ["application/json", { type: "application/json" }, false],
+    ["text/plain", { type: "text/plain" }, false],
+    ["a template type", { type: "text/x-template" }, false],
+    ["importmap", { type: "importmap" }, false],
+    ["speculationrules", { type: "speculationrules" }, false],
+    ["a JavaScript type with parameters", { type: "text/javascript; charset=utf-8" }, false],
+    ["the non-standard type=javascript", { type: "javascript" }, false],
+    ["a whitespace-only type", { type: "  " }, false],
+    ["a type padded with non-ASCII whitespace", { type: " module" }, false],
+    ["an entity-encoded type (HTMLRewriter does not decode it)", { type: "&#109;odule" }, false],
+    // The legacy language attribute without a type is never emitted by Next: fail closed.
+    ["language=javascript without a type", { language: "javascript" }, false],
+    ["language=vbscript without a type", { language: "vbscript" }, false],
+  ];
+  for (const [label, attrs, expected] of cases) {
+    test(`${expected ? "stamps" : "skips"} ${label}`, () => {
+      assert.equal(isInlineJavaScript(script({ ...attrs })), expected);
+    });
+  }
+
+  test("a type attribute decides over language, as in browsers", () => {
+    assert.equal(isInlineJavaScript(script({ type: "text/javascript", language: "vbscript" })), true);
+    assert.equal(isInlineJavaScript(script({ type: "text/plain", language: "javascript" })), false);
+  });
+});
+
 describe("applyScriptNonce", () => {
   afterEach(() => {
     delete (globalThis as { HTMLRewriter?: unknown }).HTMLRewriter;
   });
 
-  test("swaps the CSP for a nonce one and stamps every inline script, but no external one", () => {
+  test("swaps the CSP for a nonce one and stamps inline JavaScript only", () => {
     const fake = fakeRewriter();
     const out = applyScriptNonce(html({ etag: '"x"', "content-length": "31" }), {
       nonce: "N",
@@ -115,11 +169,13 @@ describe("applyScriptNonce", () => {
     const rscPayload = script({ id: "_R_" });
     const ldJson = script({ type: "application/ld+json" });
     const chunk = script({ src: "/_next/static/chunks/a.js", async: "" });
-    for (const el of [bootstrap, rscPayload, ldJson, chunk]) fake.calls[0].handler(el);
+    const svgExternal = script({ href: "https://evil.example/x.js" });
+    for (const el of [bootstrap, rscPayload, ldJson, chunk, svgExternal]) fake.calls[0].handler(el);
     assert.equal(bootstrap.attrs.nonce, "N");
     assert.equal(rscPayload.attrs.nonce, "N");
-    assert.equal(ldJson.attrs.nonce, "N");
+    assert.equal(ldJson.attrs.nonce, undefined);
     assert.equal(chunk.attrs.nonce, undefined);
+    assert.equal(svgExternal.attrs.nonce, undefined);
   });
 
   test("keeps exactly one CSP header, also on 404 pages", () => {

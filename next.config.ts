@@ -31,6 +31,9 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-XSS-Protection", value: "0" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // Puts the page in its own browsing context group, so a cross-origin window it opens (or that
+  // opens it) gets no handle to it. The site opens no popups that need window.opener.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
   {
     key: "Strict-Transport-Security",

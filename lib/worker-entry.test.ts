@@ -51,6 +51,7 @@ class TagRewriter implements Rewriter {
         const attrs = new Map([...raw.matchAll(/([^\s=]+)(?:="([^"]*)")?/g)].map((m) => [m[1], m[2] ?? ""]));
         const el: ScriptElement = {
           hasAttribute: (name) => attrs.has(name),
+          getAttribute: (name) => attrs.get(name) ?? null,
           setAttribute: (name, value) => attrs.set(name, value),
         };
         for (const handler of this.handlers) handler(el);
@@ -85,15 +86,19 @@ after(() => {
   delete (globalThis as { __openNextFetch?: unknown }).__openNextFetch;
 });
 
-// Shaped like a Next App Router page: inline RSC payload scripts plus an external chunk.
+// Shaped like a Next App Router page (inline RSC payload scripts plus an external chunk), with a
+// data block and two SVG external scripts that must not get the nonce either.
 const PAGE = [
   "<!DOCTYPE html><html><head>",
   '<script src="/_next/static/chunks/main.js" async></script>',
+  '<script type="application/ld+json">{"@type":"WebSite"}</script>',
   "</head><body><main>本文</main>",
+  '<svg><script href="https://evil.example/a.js"></script><script xlink:href="https://evil.example/b.js"></script></svg>',
   "<script>(self.__next_f=self.__next_f||[]).push([0])</script>",
   '<script>self.__next_f.push([1,"payload"])</script>',
   "</body></html>",
 ].join("");
+const INLINE_JS = 2;
 
 async function get(path: string, response: () => Response) {
   state.handler = response;
@@ -112,7 +117,7 @@ test("wrangler main is the worker.js wrapper, not the generated OpenNext worker"
   assert.deepEqual(mains, ["worker.js"]);
 });
 
-test("every HTML page gets a fresh nonce in the CSP and on each inline script", async () => {
+test("every HTML page gets a fresh nonce in the CSP and on each inline JavaScript script only", async () => {
   const nonces = new Set<string>();
   for (const status of [200, 404, 200]) {
     const res = await get("/", () => htmlResponse(status));
@@ -126,10 +131,12 @@ test("every HTML page gets a fresh nonce in the CSP and on each inline script", 
 
     const body = await res.text();
     const scripts = [...body.matchAll(/<script\b[^>]*>/g)].map((m) => m[0]);
-    assert.equal(scripts.length, 3);
-    for (const tag of scripts) {
-      if (tag.includes(" src=")) assert.ok(!tag.includes("nonce="), tag);
-      else assert.ok(tag.includes(` nonce="${nonce}"`), tag);
+    assert.equal(scripts.length, 6);
+    const stamped = scripts.filter((tag) => tag.includes(` nonce="${nonce}"`));
+    assert.equal(stamped.length, INLINE_JS);
+    for (const tag of stamped) assert.match(tag, /^<script nonce="[^"]+">$/, "only the bare inline scripts");
+    for (const tag of scripts.filter((t) => /\s(src|href|xlink:href|type)=/.test(t))) {
+      assert.ok(!tag.includes("nonce="), tag);
     }
   }
   assert.equal(nonces.size, 3, "a nonce is never reused across requests");
