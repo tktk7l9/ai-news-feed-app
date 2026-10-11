@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/archive" }));
 // Async server component: the footer's own tests cover it.
@@ -24,6 +25,18 @@ describe("RootLayout", () => {
     expect(main).toHaveAttribute("id", "main");
     expect(main).toHaveTextContent("ページ本文");
     expect(screen.getByRole("contentinfo")).toHaveTextContent("最終更新: テスト");
+  });
+
+  it("puts no script in the server HTML (the analytics beacon is appended after hydration)", () => {
+    // An external <script> without integrity costs the Observatory SRI test, and the beacon
+    // cannot carry integrity because Cloudflare updates it in place.
+    const html = renderToStaticMarkup(
+      <RootLayout>
+        <p>ページ本文</p>
+      </RootLayout>,
+    );
+    expect(html).toContain("ページ本文");
+    expect(html).not.toContain("<script");
   });
 
   it("declares the site metadata and theme colours", () => {

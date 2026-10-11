@@ -2,7 +2,11 @@ import type { NextConfig } from "next";
 
 // CSP: Supabase and the Gemini API are only called from the server (Route Handlers and Server
 // Components), so the browser never needs them in connect-src; the only cross-origin request the
-// page makes is the Cloudflare Web Analytics beacon.
+// page makes is the Cloudflare Web Analytics beacon (components/Analytics.tsx).
+// script-src 'unsafe-inline' is only the baseline: Next writes its RSC payload as inline <script>.
+// In production every HTML response passes through worker.js, which swaps that token for a
+// per-request nonce (lib/csp-nonce.ts), so pages never ship script-src 'unsafe-inline'.
+// `next dev` / `next start` do not run the Worker and keep this static value.
 // React needs 'unsafe-eval' only in development (error stack reconstruction); production never evals.
 const isDev = process.env.NODE_ENV === "development";
 
