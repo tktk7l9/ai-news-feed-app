@@ -2,7 +2,11 @@ import { afterEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import nextConfig from "../next.config.ts";
 import {
+  applyBrowserCacheControl,
   applyScriptNonce,
+  BROWSER_CACHE_CONTROL,
+  browserCacheControl,
+  CACHE_CONTROL_HEADER,
   createNonce,
   CSP_HEADER,
   isInlineJavaScript,
@@ -235,5 +239,90 @@ describe("applyScriptNonce", () => {
 
   test("fails loudly outside the Workers runtime instead of serving a nonce nobody stamped", () => {
     assert.throws(() => applyScriptNonce(html(), { nonce: "N" }), /HTMLRewriter/);
+  });
+});
+
+// What Next 16 sends for an ISR page (revalidate = 3600, default one-year expire) and its RSC payload.
+const NEXT_ISR_CACHE_CONTROL = "s-maxage=3600, stale-while-revalidate=31532400";
+
+describe("browserCacheControl", () => {
+  test("is the value Vercel sends browsers for ISR and static pages", () => {
+    assert.equal(BROWSER_CACHE_CONTROL, "public, max-age=0, must-revalidate");
+  });
+
+  const normalized: [string, string][] = [
+    ["s-maxage with stale-while-revalidate (ISR)", NEXT_ISR_CACHE_CONTROL],
+    ["s-maxage alone (static pages)", "s-maxage=31536000"],
+    ["s-maxage after another directive, in another case, spaced around '='", "public, S-MaxAge = 60"],
+  ];
+  for (const [label, value] of normalized) {
+    test(`normalizes ${label}`, () => {
+      assert.equal(browserCacheControl(value), BROWSER_CACHE_CONTROL);
+    });
+  }
+
+  const unchanged: [string, string | null][] = [
+    ["dynamic pages", "private, no-cache, no-store, max-age=0, must-revalidate"],
+    ["immutable assets", "public,max-age=31536000,immutable"],
+    ["max-age without s-maxage", "public, max-age=60, stale-while-revalidate=30"],
+    ["a directive whose name only ends in s-maxage", "x-s-maxage=60"],
+    ["a missing header (null)", null],
+  ];
+  for (const [label, value] of unchanged) {
+    test(`keeps ${label} unchanged`, () => {
+      assert.equal(browserCacheControl(value), value);
+    });
+  }
+});
+
+describe("applyBrowserCacheControl", () => {
+  test("rewrites the header and keeps the status, the body and every other header", async () => {
+    const response = new Response("0:[]", {
+      status: 200,
+      statusText: "OK",
+      headers: {
+        "content-type": "text/x-component",
+        [CACHE_CONTROL_HEADER]: NEXT_ISR_CACHE_CONTROL,
+        vary: "rsc, next-router-state-tree, next-router-prefetch",
+        [CSP_HEADER]: STATIC_CSP,
+      },
+    });
+    const out = applyBrowserCacheControl(response);
+
+    assert.equal(out.headers.get(CACHE_CONTROL_HEADER), BROWSER_CACHE_CONTROL);
+    assert.equal(out.status, 200);
+    assert.equal(out.statusText, "OK");
+    assert.equal(out.headers.get("content-type"), "text/x-component");
+    assert.equal(out.headers.get("vary"), "rsc, next-router-state-tree, next-router-prefetch");
+    assert.equal(out.headers.get(CSP_HEADER), STATIC_CSP);
+    assert.equal(await out.text(), "0:[]");
+    // The original is not edited in place: fetch() results and redirects have immutable headers.
+    assert.equal(response.headers.get(CACHE_CONTROL_HEADER), NEXT_ISR_CACHE_CONTROL);
+  });
+
+  test("also rewrites a body-less 304", () => {
+    const out = applyBrowserCacheControl(
+      new Response(null, { status: 304, headers: { [CACHE_CONTROL_HEADER]: NEXT_ISR_CACHE_CONTROL } }),
+    );
+    assert.equal(out.status, 304);
+    assert.equal(out.body, null);
+    assert.equal(out.headers.get(CACHE_CONTROL_HEADER), BROWSER_CACHE_CONTROL);
+  });
+
+  const untouched: [string, Record<string, string>][] = [
+    ["without Cache-Control", { "content-type": "application/json" }],
+    ["with a browser Cache-Control", { [CACHE_CONTROL_HEADER]: "private, no-cache, no-store, max-age=0, must-revalidate" }],
+    ["already normalized", { [CACHE_CONTROL_HEADER]: BROWSER_CACHE_CONTROL }],
+  ];
+  for (const [label, headers] of untouched) {
+    test(`returns a response ${label} as is`, () => {
+      const response = new Response("{}", { headers });
+      assert.equal(applyBrowserCacheControl(response), response);
+    });
+  }
+
+  test("never adds a Cache-Control header", () => {
+    const out = applyBrowserCacheControl(new Response("<p>", { headers: { "content-type": "text/html" } }));
+    assert.equal(out.headers.get(CACHE_CONTROL_HEADER), null);
   });
 });

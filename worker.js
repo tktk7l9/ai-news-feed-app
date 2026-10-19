@@ -4,8 +4,10 @@
  *
  * 1. fetch: every HTML response gets a per-request script nonce in place of the static
  *    script-src 'unsafe-inline' (lib/csp-nonce.ts). Next 16's proxy cannot run on OpenNext, so
- *    the nonce is added here, after rendering. Static assets (/_next/static/*, public/) are
- *    served by Workers Assets before this runs and carry no CSP.
+ *    the nonce is added here, after rendering. Every response (HTML, RSC payloads, route
+ *    handlers) also has Next's CDN-only Cache-Control (s-maxage) replaced by the browser value
+ *    Vercel would send (browserCacheControl). Static assets (/_next/static/*, public/) are
+ *    served by Workers Assets before this runs and get neither.
  * 2. scheduled: the handler called by Cron Triggers, replacing Vercel Cron (the crons in
  *    vercel.json). The cron routes are GETs protected by Bearer CRON_SECRET, so the Worker builds
  *    the same request internally and passes it to the fetch handler. Set CRON_SECRET with
@@ -19,7 +21,7 @@
  * yet. wrangler's bundler compiles the TypeScript import below.
  */
 import openNextHandler from "./.open-next/worker.js";
-import { applyScriptNonce } from "./lib/csp-nonce.ts";
+import { applyBrowserCacheControl, applyScriptNonce } from "./lib/csp-nonce.ts";
 
 export { DOQueueHandler } from "./.open-next/worker.js";
 export { DOShardedTagCache } from "./.open-next/worker.js";
@@ -34,7 +36,7 @@ const CRON_PATHS = {
 const worker = {
   async fetch(request, env, ctx) {
     const response = await openNextHandler.fetch(request, env, ctx);
-    return applyScriptNonce(response);
+    return applyScriptNonce(applyBrowserCacheControl(response));
   },
 
   async scheduled(controller, env, ctx) {
