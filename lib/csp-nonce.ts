@@ -22,6 +22,9 @@
 //
 // Responses that are not HTML (RSC, JSON, images) keep the static header unchanged; they run no
 // inline script. `next dev` / `next start` never reach this code and keep the static CSP.
+//
+// The same entry also rewrites Next's CDN-only Cache-Control for browsers on every response
+// (browserCacheControl, at the end of this file).
 
 export const CSP_HEADER = "Content-Security-Policy";
 
@@ -147,4 +150,36 @@ export function applyScriptNonce(
       },
     })
     .transform(rewritten);
+}
+
+// Next sends ISR/static pages and their RSC payloads with `s-maxage=…, stale-while-revalidate=…`
+// (about a year). That header is meant for a CDN and Vercel rewrites it for browsers, but on Workers
+// it reached the browser as is, so Chrome served old RSC payloads from its disk cache (an old news
+// list on client navigation, 404 chunks after a deploy). Browsers get Vercel's value instead; ISR on
+// the server is unaffected because OpenNext's incremental cache never reads this response header.
+export const CACHE_CONTROL_HEADER = "Cache-Control";
+export const BROWSER_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+const S_MAXAGE_DIRECTIVE = /(^|,)\s*s-maxage\s*=/i;
+
+/** The Cache-Control a browser should get: a CDN header (s-maxage) becomes revalidate-every-time. */
+export function browserCacheControl(value: string | null): string | null {
+  return value !== null && S_MAXAGE_DIRECTIVE.test(value) ? BROWSER_CACHE_CONTROL : value;
+}
+
+/**
+ * Applies browserCacheControl to any response (HTML, RSC payloads, route handlers). The response
+ * comes back as is when the header does not change, so a missing Cache-Control is never added.
+ */
+export function applyBrowserCacheControl(response: Response): Response {
+  const current = response.headers.get(CACHE_CONTROL_HEADER);
+  const normalized = browserCacheControl(current);
+  if (normalized === null || normalized === current) return response;
+
+  const headers = new Headers(response.headers);
+  headers.set(CACHE_CONTROL_HEADER, normalized);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }

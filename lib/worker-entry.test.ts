@@ -3,11 +3,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import nextConfig from "../next.config.ts";
-import { CSP_HEADER, type Rewriter, type ScriptElement } from "./csp-nonce.ts";
+import {
+  BROWSER_CACHE_CONTROL,
+  CACHE_CONTROL_HEADER,
+  CSP_HEADER,
+  type Rewriter,
+  type ScriptElement,
+} from "./csp-nonce.ts";
 
 // Guards the Worker entry. Pointing wrangler's "main" back at the generated .open-next/worker.js
-// would still deploy and serve every page, but silently restore script-src 'unsafe-inline' (and
-// drop the Cron Triggers handler), so both the config and the entry's behaviour are pinned here.
+// would still deploy and serve every page, but silently restore script-src 'unsafe-inline' and
+// Next's CDN-only Cache-Control in browsers (and drop the Cron Triggers handler), so both the
+// config and the entry's behaviour are pinned here.
 // All async setup runs before the first test() so the after() hook cannot fire early.
 
 const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
@@ -105,12 +112,15 @@ async function get(path: string, response: () => Response) {
   return entry.default.fetch(new Request(`https://example.test${path}`), {}, {});
 }
 
-function htmlResponse(status: number) {
+function htmlResponse(status: number, extraHeaders: Record<string, string> = {}) {
   return new Response(PAGE, {
     status,
-    headers: { "content-type": "text/html; charset=utf-8", [CSP_HEADER]: STATIC_CSP, etag: '"abc"' },
+    headers: { "content-type": "text/html; charset=utf-8", [CSP_HEADER]: STATIC_CSP, etag: '"abc"', ...extraHeaders },
   });
 }
+
+// What Next 16 sends for an ISR page (revalidate = 3600, default one-year expire) and its RSC payload.
+const NEXT_ISR_CACHE_CONTROL = "s-maxage=3600, stale-while-revalidate=31532400";
 
 test("wrangler main is the worker.js wrapper, not the generated OpenNext worker", () => {
   const mains = [...wrangler.matchAll(/"main"\s*:\s*"([^"]+)"/g)].map((m) => m[1]);
@@ -146,6 +156,49 @@ test("non-HTML responses keep the static header untouched", async () => {
   const json = new Response("{}", { headers: { "content-type": "application/json", [CSP_HEADER]: STATIC_CSP } });
   const res = await get("/manifest.webmanifest", () => json);
   assert.equal(res, json);
+});
+
+test("an HTML page with Next's CDN Cache-Control reaches the browser revalidating, still with its nonce", async () => {
+  const res = await get("/", () => htmlResponse(200, { [CACHE_CONTROL_HEADER]: NEXT_ISR_CACHE_CONTROL }));
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get(CACHE_CONTROL_HEADER), BROWSER_CACHE_CONTROL);
+
+  const csp = res.headers.get(CSP_HEADER) ?? "";
+  const nonce = /script-src 'self' 'nonce-([A-Za-z0-9+/=]+)'/.exec(csp)?.[1];
+  assert.ok(nonce, csp);
+  assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
+  const body = await res.text();
+  assert.equal(body.split(` nonce="${nonce}"`).length - 1, INLINE_JS);
+});
+
+test("RSC payloads and route handlers with Next's CDN Cache-Control reach the browser revalidating", async () => {
+  const cases: { path: string; contentType: string; cacheControl: string; body: string }[] = [
+    { path: "/?_rsc=abc12", contentType: "text/x-component", cacheControl: NEXT_ISR_CACHE_CONTROL, body: "0:[]" },
+    { path: "/manifest.webmanifest", contentType: "application/manifest+json", cacheControl: "s-maxage=31536000", body: "{}" },
+  ];
+  for (const { path, contentType, cacheControl, body } of cases) {
+    const res = await get(path, () =>
+      new Response(body, {
+        headers: { "content-type": contentType, [CACHE_CONTROL_HEADER]: cacheControl, [CSP_HEADER]: STATIC_CSP },
+      }),
+    );
+    assert.equal(res.headers.get(CACHE_CONTROL_HEADER), BROWSER_CACHE_CONTROL, path);
+    assert.equal(res.headers.get("content-type"), contentType, path);
+    // Not HTML, so the CSP stays the static one (no nonce).
+    assert.equal(res.headers.get(CSP_HEADER), STATIC_CSP, path);
+    assert.equal(await res.text(), body, path);
+  }
+});
+
+test("a response without Cache-Control gets none", async () => {
+  const json = await get("/api/cron/cleanup", () =>
+    new Response("{}", { headers: { "content-type": "application/json" } }),
+  );
+  assert.equal(json.headers.get(CACHE_CONTROL_HEADER), null);
+
+  const html = await get("/", () => htmlResponse(200));
+  assert.equal(html.headers.get(CACHE_CONTROL_HEADER), null);
+  assert.match(html.headers.get(CSP_HEADER) ?? "", /'nonce-/);
 });
 
 test("worker.js still re-exports the Durable Object classes of the generated worker", () => {
