@@ -155,7 +155,7 @@ test("wrangler binds the ISR cache: R2 bucket, Durable Object queue, tag cache a
   assert.match(openNextConfig, /tagCache:\s*doShardedTagCache\(/);
   // The digest's revalidatePath calls are what the tag cache is for.
   const digest = readFileSync(new URL("./jobs/digest.ts", import.meta.url), "utf8");
-  for (const path of ['"/"', '"/archive"', "`/archive/${today}`", '"/category/[slug]", "page"']) {
+  for (const path of ['"/"', '"/archive"', '"/archive/[date]", "page"', '"/category/[slug]", "page"']) {
     assert.ok(digest.includes(`revalidatePath(${path})`), path);
   }
 });

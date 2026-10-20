@@ -211,7 +211,8 @@ const dailyDigest = (
   try {
     revalidatePath("/");
     revalidatePath("/archive");
-    revalidatePath(`/archive/${today}`);
+    // Every day page: today's replaces a cached 404, and the previous day gains its next-day link.
+    revalidatePath("/archive/[date]", "page");
     revalidatePath("/category/[slug]", "page");
   } catch (e) {
     console.warn("[digest] revalidate failed", e);
