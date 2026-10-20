@@ -131,21 +131,33 @@ test("wrangler main is the worker.js wrapper, not the generated OpenNext worker"
   assert.deepEqual(mains, ["worker.js"]);
 });
 
-// The ISR pages (revalidate = 3600) are stored in R2 and regenerated through a Durable Object
-// queue (open-next.config.ts). Dropping one of these bindings would not fail the build: every
-// request would quietly render again (R2), or stale pages would never regenerate (queue).
-test("wrangler binds the ISR cache: R2 bucket, Durable Object queue and the self reference", () => {
+// The ISR pages (revalidate = 3600) are stored in R2, regenerated through a Durable Object
+// queue, and revalidated by the daily digest through a Durable Object tag cache
+// (open-next.config.ts). Dropping one of these bindings would not fail the build: every request
+// would quietly render again (R2), stale pages would never regenerate (queue), or the morning's
+// digest would wait behind the page cached before it (tag cache).
+test("wrangler binds the ISR cache: R2 bucket, Durable Object queue, tag cache and the self reference", () => {
   assert.match(wrangler, /"binding"\s*:\s*"NEXT_INC_CACHE_R2_BUCKET"/);
   assert.match(wrangler, /"name"\s*:\s*"NEXT_CACHE_DO_QUEUE"\s*,\s*"class_name"\s*:\s*"DOQueueHandler"/);
-  assert.match(wrangler, /"new_sqlite_classes"\s*:\s*\[\s*"DOQueueHandler"\s*\]/);
+  assert.match(wrangler, /"name"\s*:\s*"NEXT_TAG_CACHE_DO_SHARDED"\s*,\s*"class_name"\s*:\s*"DOShardedTagCache"/);
+  // A deployed migration tag must never change, so the tag cache class arrives as v2.
+  assert.match(wrangler, /"tag"\s*:\s*"v1"\s*,\s*"new_sqlite_classes"\s*:\s*\[\s*"DOQueueHandler"\s*\]/);
+  assert.match(wrangler, /"tag"\s*:\s*"v2"\s*,\s*"new_sqlite_classes"\s*:\s*\[\s*"DOShardedTagCache"\s*\]/);
   assert.match(wrangler, /"binding"\s*:\s*"WORKER_SELF_REFERENCE"\s*,\s*"service"\s*:\s*"ai-news-feed-app"/);
   assert.match(wrangler, /"name"\s*:\s*"ai-news-feed-app"/);
-  // The Durable Object class must be exported from the entry wrangler runs
+  // The Durable Object classes must be exported from the entry wrangler runs
   const entry = readFileSync(new URL("../worker.js", import.meta.url), "utf8");
   assert.match(entry, /export \{ DOQueueHandler \} from "\.\/\.open-next\/worker\.js"/);
+  assert.match(entry, /export \{ DOShardedTagCache \} from "\.\/\.open-next\/worker\.js"/);
   const openNextConfig = readFileSync(new URL("../open-next.config.ts", import.meta.url), "utf8");
   assert.match(openNextConfig, /incrementalCache:\s*withRegionalCache\(r2IncrementalCache/);
   assert.match(openNextConfig, /queue:\s*doQueue/);
+  assert.match(openNextConfig, /tagCache:\s*doShardedTagCache\(/);
+  // The digest's revalidatePath calls are what the tag cache is for.
+  const digest = readFileSync(new URL("./jobs/digest.ts", import.meta.url), "utf8");
+  for (const path of ['"/"', '"/archive"', "`/archive/${today}`", '"/category/[slug]", "page"']) {
+    assert.ok(digest.includes(`revalidatePath(${path})`), path);
+  }
 });
 
 test("every HTML page gets a fresh nonce in the CSP and on each inline JavaScript script only", async () => {

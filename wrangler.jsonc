@@ -24,6 +24,7 @@
   },
   // ISR cache (open-next.config.ts): rendered pages live in R2, a Durable Object queue
   // regenerates stale ones, and the queue calls this Worker back through WORKER_SELF_REFERENCE.
+  // A second Durable Object class records revalidatePath calls (the tag cache).
   // The bucket was created by the owner (wrangler r2 bucket create ai-news-feed-app-cache).
   "r2_buckets": [
     {
@@ -43,12 +44,21 @@
         "name": "NEXT_CACHE_DO_QUEUE",
         "class_name": "DOQueueHandler",
       },
+      {
+        "name": "NEXT_TAG_CACHE_DO_SHARDED",
+        "class_name": "DOShardedTagCache",
+      },
     ],
   },
+  // Append new classes as a new tag; never edit a tag that has been deployed.
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["DOQueueHandler"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["DOShardedTagCache"],
     },
   ],
   // Replaces the crons in vercel.json. Keep in sync with CRON_JOBS in worker.js.
