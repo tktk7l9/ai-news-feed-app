@@ -5,8 +5,10 @@ import { TestClock } from "effect/testing";
 import {
   GenerateJson,
   generateDigest,
+  isTransientGeminiError,
   normalizeClassifications,
   normalizeSummaries,
+  retryDelayMs,
   type GenerateJsonRequest,
 } from "./digest.ts";
 
@@ -139,6 +141,87 @@ test("fails with a GeminiError naming the stage after 3 attempts", async () => {
   assert.equal(error._tag, "GeminiError");
   assert.equal(error.stage, "filter");
   assert.equal(error.message, "gemini filter failed: quota exceeded");
+});
+
+/** Shaped like the SDK's GoogleGenerativeAIFetchError: the HTTP status sits on `status`. */
+const httpError = (status: number, text: string) =>
+  Object.assign(new Error(`[GoogleGenerativeAI Error]: Error fetching from https://gemini.test: [${status}] ${text}`), {
+    status,
+  });
+
+/** Runs generateDigest under the test clock, stepping time and recording when each call happened. */
+async function callTimes(replies: (string | Error)[], steps: number[]) {
+  const { impl, calls } = scripted(replies);
+  const times: number[] = [];
+  let now = 0;
+  const timed = async (req: GenerateJsonRequest) => {
+    times.push(now);
+    return impl(req);
+  };
+  const program = Effect.gen(function* () {
+    const fiber = yield* Effect.forkChild(Effect.result(generateDigest([input("a")])));
+    yield* advance(0);
+    for (const ms of steps) {
+      now += ms; // the retry fires inside advance(), so the clock reading moves first
+      yield* advance(ms);
+    }
+    return yield* Fiber.join(fiber);
+  });
+  const original = console.warn;
+  console.warn = () => {};
+  try {
+    const result = await run(program, timed);
+    return { result, calls, times };
+  } finally {
+    console.warn = original;
+  }
+}
+
+test("waits 15s, 45s, then 135s between attempts while Gemini answers 503, and recovers", async () => {
+  const overloaded = httpError(503, "This model is currently experiencing high demand.");
+  // Stopping 1ms short of each delay proves no retry fires early.
+  const steps = [14_999, 1, 44_999, 1, 134_999, 1];
+  const { result, calls, times } = await callTimes([overloaded, overloaded, overloaded, filterReply(["a"], 1)], steps);
+  assert.equal(calls.length, 4);
+  assert.deepEqual(times, [0, 15_000, 60_000, 195_000]);
+  assert.equal(result._tag, "Success");
+});
+
+test("gives up after 4 attempts on a transient error and names the stage", async () => {
+  const { result, calls } = await callTimes([httpError(429, "Resource has been exhausted")], [15_000, 45_000, 135_000, 600_000]);
+  assert.equal(calls.length, 4);
+  assert.equal(result._tag, "Failure");
+  if (result._tag === "Failure") {
+    assert.equal(result.failure.stage, "filter");
+    assert.match(result.failure.message, /^gemini filter failed: .*\[429\]/);
+  }
+});
+
+test("a request the API rejects (400) is not waited out: 3 attempts, 1s apart then 2s", async () => {
+  const { calls, times } = await callTimes([httpError(400, "Invalid JSON payload")], [999, 1, 1_999, 1, 600_000]);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(times, [0, 1_000, 3_000]);
+});
+
+test("isTransientGeminiError: overload, rate limit, server errors and dropped connections only", () => {
+  for (const status of [408, 429, 500, 502, 503, 504]) assert.equal(isTransientGeminiError(httpError(status, "")), true, String(status));
+  for (const status of [400, 401, 403, 404]) assert.equal(isTransientGeminiError(httpError(status, "")), false, String(status));
+  // The SDK rethrows a fetch that never got a status (Workers: "Network connection lost.").
+  assert.equal(
+    isTransientGeminiError(new Error("[GoogleGenerativeAI Error]: Error fetching from https://gemini.test: Network connection lost.")),
+    true,
+  );
+  assert.equal(isTransientGeminiError(new Error("[GoogleGenerativeAI Error]: Request aborted when fetching https://gemini.test: x")), true);
+  assert.equal(isTransientGeminiError(new Error("[GoogleGenerativeAI Error]: Candidate was blocked due to SAFETY")), false);
+  assert.equal(isTransientGeminiError(new Error("503")), false);
+  assert.equal(isTransientGeminiError("Error fetching from"), false);
+  assert.equal(isTransientGeminiError(null), false);
+});
+
+test("retryDelayMs follows the attempt count and gives up past the last delay", () => {
+  const overloaded = httpError(503, "");
+  assert.deepEqual([1, 2, 3, 4].map((n) => retryDelayMs(overloaded, n)), [15_000, 45_000, 135_000, null]);
+  assert.deepEqual([1, 2, 3].map((n) => retryDelayMs(new Error("boom"), n)), [1_000, 2_000, null]);
 });
 
 test("normalizeClassifications pins category, importance and ids before they reach the database", () => {

@@ -76,8 +76,12 @@ class TagRewriter implements Rewriter {
 }
 (globalThis as { HTMLRewriter?: unknown }).HTMLRewriter = TagRewriter;
 
+type Ctx = { waitUntil(promise: Promise<unknown>): void };
 const entry = (await import(new URL("../worker.js", import.meta.url).href)) as {
-  default: { fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> };
+  default: {
+    fetch(request: Request, env: unknown, ctx: unknown): Promise<Response>;
+    scheduled(controller: { cron: string }, env: { CRON_SECRET: string }, ctx: Ctx): Promise<void>;
+  };
   DOQueueHandler: unknown;
   DOShardedTagCache: unknown;
   BucketCachePurge: unknown;
@@ -216,6 +220,71 @@ test("a response without Cache-Control gets none", async () => {
   const html = await get("/", () => htmlResponse(200));
   assert.equal(html.headers.get(CACHE_CONTROL_HEADER), null);
   assert.match(html.headers.get(CSP_HEADER) ?? "", /'nonce-/);
+});
+
+/** Fires one Cron Trigger and waits for its work, returning the requests it made and its logs. */
+async function fireCron(cron: string, respond: (path: string) => Response = () => Response.json({ ok: true })) {
+  const requests: { path: string; authorization: string | null }[] = [];
+  state.handler = (request) => {
+    const path = new URL(request.url).pathname;
+    requests.push({ path, authorization: request.headers.get("authorization") });
+    return respond(path);
+  };
+  const pending: Promise<unknown>[] = [];
+  const logs: string[] = [];
+  const errors: string[] = [];
+  const original = { log: console.log, error: console.error };
+  console.log = (...args: unknown[]) => logs.push(args.join(" "));
+  console.error = (...args: unknown[]) => errors.push(args.map(String).join(" "));
+  try {
+    await entry.default.scheduled({ cron }, { CRON_SECRET: "s3cret" }, { waitUntil: (p) => pending.push(p) });
+    await Promise.all(pending);
+  } finally {
+    Object.assign(console, original);
+  }
+  return { requests, logs, errors };
+}
+
+test("every schedule in wrangler.jsonc is handled by worker.js", async () => {
+  const crons = [...wrangler.matchAll(/^\s*"([^"]+)",\s*\/\/ /gm)].map((m) => m[1]).filter((c) => c.split(" ").length === 5);
+  assert.deepEqual(crons, ["0 21 * * *", "0 4 * * *"]);
+  for (const cron of crons) {
+    const { requests, errors } = await fireCron(cron);
+    assert.ok(requests.length > 0, cron);
+    assert.deepEqual(errors, [], cron);
+  }
+});
+
+test("the morning cron builds the digest; the afternoon cron cleans up, then retries a missing digest", async () => {
+  const morning = await fireCron("0 21 * * *");
+  assert.deepEqual(morning.requests, [{ path: "/api/cron/daily-digest", authorization: "Bearer s3cret" }]);
+
+  const afternoon = await fireCron("0 4 * * *");
+  assert.deepEqual(
+    afternoon.requests.map((r) => r.path),
+    ["/api/cron/cleanup", "/api/cron/daily-digest"],
+    "cleanup first, then the digest catch-up (a no-op once today's digest exists)",
+  );
+  for (const r of afternoon.requests) assert.equal(r.authorization, "Bearer s3cret");
+  // The route's JSON summary is logged, so a skipped or failed run is visible in Workers Logs.
+  assert.ok(afternoon.logs.includes('[cron] /api/cron/cleanup -> 200 {"ok":true}'), afternoon.logs.join("\n"));
+});
+
+test("a failing cron route is logged and does not stop the next one", async () => {
+  const { requests, logs, errors } = await fireCron("0 4 * * *", (path) => {
+    if (path === "/api/cron/cleanup") throw new Error("boom");
+    return Response.json({ date: "2026-10-20", skipped: true, accepted: 0 }, { status: 200 });
+  });
+  assert.deepEqual(requests.map((r) => r.path), ["/api/cron/cleanup", "/api/cron/daily-digest"]);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^\[cron\] \/api\/cron\/cleanup failed Error: boom/);
+  assert.ok(logs.some((l) => l.startsWith("[cron] /api/cron/daily-digest -> 200") && l.includes('"skipped":true')));
+});
+
+test("an unknown schedule runs nothing", async () => {
+  const { requests, errors } = await fireCron("*/5 * * * *");
+  assert.deepEqual(requests, []);
+  assert.deepEqual(errors, ["[cron] unknown schedule: */5 * * * *"]);
 });
 
 test("worker.js still re-exports the Durable Object classes of the generated worker", () => {

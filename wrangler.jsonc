@@ -51,11 +51,11 @@
       "new_sqlite_classes": ["DOQueueHandler"],
     },
   ],
-  // Replaces the crons in vercel.json. Keep in sync with CRON_PATHS in worker.js.
+  // Replaces the crons in vercel.json. Keep in sync with CRON_JOBS in worker.js.
   "triggers": {
     "crons": [
       "0 21 * * *", // Generate the daily digest (JST 06:00)
-      "0 4 * * *", // Clean up old records
+      "0 4 * * *", // Clean up old records, then retry the digest if the morning run failed (JST 13:00)
     ],
   },
   "observability": {

@@ -10,6 +10,8 @@ import type { Source } from "@/lib/types";
 
 export type DigestRunResult = {
   date: string;
+  /** True when today's digest already existed, so nothing was fetched or written. */
+  skipped?: boolean;
   sources?: number;
   failures?: number;
   fetched?: number;
@@ -57,6 +59,17 @@ const dailyDigest = (
       catch: (cause) => new DigestStepError({ step: "connect", cause }),
   });
   const today = jstDateString();
+
+  // 0. The afternoon cron runs the digest again as a catch-up for a morning run that failed
+  // (worker.js). Once today's digest is saved, a second run would replace its overview with
+  // whatever arrived since, so it stops here.
+  const existing = yield* db("load_digest", () =>
+    sb.from("daily_digests").select("date").eq("date", today).maybeSingle(),
+  );
+  if (existing) {
+    console.log(`[digest] ${today} already generated, skipping`);
+    return { date: today, skipped: true, accepted: 0 };
+  }
 
   // 1. Load active sources
   onProgress?.({ stage: "loading_sources" });
