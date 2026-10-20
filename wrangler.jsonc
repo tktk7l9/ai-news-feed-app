@@ -22,6 +22,35 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
+  // ISR cache (open-next.config.ts): rendered pages live in R2, a Durable Object queue
+  // regenerates stale ones, and the queue calls this Worker back through WORKER_SELF_REFERENCE.
+  // The bucket was created by the owner (wrangler r2 bucket create ai-news-feed-app-cache).
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "ai-news-feed-app-cache",
+    },
+  ],
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "ai-news-feed-app",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "NEXT_CACHE_DO_QUEUE",
+        "class_name": "DOQueueHandler",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["DOQueueHandler"],
+    },
+  ],
   // Replaces the crons in vercel.json. Keep in sync with CRON_PATHS in worker.js.
   "triggers": {
     "crons": [
