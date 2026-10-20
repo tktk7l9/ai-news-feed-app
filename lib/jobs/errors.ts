@@ -4,6 +4,7 @@ import { describeError } from "../load-error.ts";
 
 export type DigestStep =
   | "connect"
+  | "load_digest"
   | "load_sources"
   | "save_raw"
   | "load_candidates"

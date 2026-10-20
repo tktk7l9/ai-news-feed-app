@@ -1,5 +1,5 @@
 import type { Schema } from "@google/generative-ai";
-import { Console, Context, Data, Duration, Effect, Schedule } from "effect";
+import { Console, Context, Data, Effect, Result } from "effect";
 import { getGemini, GEMINI_MODEL } from "./client.ts";
 import {
   FILTER_SYSTEM_PROMPT,
@@ -54,26 +54,56 @@ export class GeminiError extends Data.TaggedError("GeminiError")<{
   }
 }
 
-/** Retries after a failed call: 3 attempts in all, waiting 1s then 2s (no wait after the last). */
-const GEMINI_RETRIES = 2;
-const retryPolicy = Schedule.exponential("1 second").pipe(
-  Schedule.setInputType<GeminiError>(),
-  Schedule.tap(({ attempt, duration, input }) =>
-    Console.warn(
-      `[gemini] attempt ${attempt}/${GEMINI_RETRIES + 1} failed, retrying in ${Duration.toMillis(duration)}ms`,
-      input.cause,
-    ),
-  ),
-);
+/** HTTP statuses that mean "try again later": timeout, rate limit, server error, overloaded. */
+const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([408, 429, 500, 502, 503, 504]);
+
+/**
+ * Whether a failed call is worth waiting out. The SDK puts the HTTP status on `status`
+ * (503 "This model is currently experiencing high demand" ended the 2026-10-20 run), and
+ * rethrows a fetch that never got a status (DNS, reset, "Network connection lost.") as
+ * "Error fetching from <url>: <reason>". Exported for tests.
+ */
+export function isTransientGeminiError(cause: unknown): boolean {
+  if (typeof cause !== "object" || cause === null) return false;
+  const status = (cause as { status?: unknown }).status;
+  if (typeof status === "number") return TRANSIENT_STATUSES.has(status);
+  const message = cause instanceof Error ? cause.message : "";
+  return message.includes("Error fetching from") || message.includes("Request aborted when fetching");
+}
+
+// Waits before each retry. An overloaded model usually recovers within minutes, so transient
+// failures wait 15s, 45s, then 135s (4 attempts, about 3 minutes); anything else gets the
+// short 1s, 2s (3 attempts). Both stages together stay well inside the 15-minute limit of a
+// Cron Trigger invocation, and the afternoon cron retries a day that still failed (worker.js).
+const RETRY_DELAYS_MS = [1_000, 2_000];
+const TRANSIENT_RETRY_DELAYS_MS = [15_000, 45_000, 135_000];
+
+/** Milliseconds to wait after failed attempt `attempt` (from 1), or null to give up. Exported for tests. */
+export function retryDelayMs(cause: unknown, attempt: number): number | null {
+  const delays = isTransientGeminiError(cause) ? TRANSIENT_RETRY_DELAYS_MS : RETRY_DELAYS_MS;
+  return delays[attempt - 1] ?? null;
+}
 
 const generateJson = (req: GenerateJsonRequest): Effect.Effect<string, GeminiError> =>
   Effect.gen(function* () {
     const call = yield* GenerateJson;
-    return yield* Effect.tryPromise({
-      try: () => call(req),
-      catch: (cause) => new GeminiError({ stage: req.stage, cause }),
-    });
-  }).pipe(Effect.retry({ schedule: retryPolicy, times: GEMINI_RETRIES }));
+    for (let attempt = 1; ; attempt++) {
+      const result = yield* Effect.result(
+        Effect.tryPromise({
+          try: () => call(req),
+          catch: (cause) => new GeminiError({ stage: req.stage, cause }),
+        }),
+      );
+      if (Result.isSuccess(result)) return result.success;
+      const delay = retryDelayMs(result.failure.cause, attempt);
+      if (delay === null) return yield* result.failure;
+      yield* Console.warn(
+        `[gemini] ${req.stage} attempt ${attempt} failed, retrying in ${delay}ms`,
+        result.failure.cause,
+      );
+      yield* Effect.sleep(delay);
+    }
+  });
 
 export type DigestInput = {
   raw_id: string;

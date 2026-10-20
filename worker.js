@@ -27,11 +27,30 @@ export { DOQueueHandler } from "./.open-next/worker.js";
 export { DOShardedTagCache } from "./.open-next/worker.js";
 export { BucketCachePurge } from "./.open-next/worker.js";
 
-// Keep this in sync with triggers.crons in wrangler.jsonc.
-const CRON_PATHS = {
-  "0 21 * * *": "/api/cron/daily-digest", // JST 06:00
-  "0 4 * * *": "/api/cron/cleanup",
+// Keep this in sync with triggers.crons in wrangler.jsonc. The routes of one schedule run one
+// after another. The afternoon schedule also runs the digest again: it does nothing when the
+// morning run saved today's digest (lib/jobs/digest.ts), and otherwise retries a morning run
+// that failed, for example while Gemini answered 503 for longer than its own retries wait.
+// A separate schedule for that would not fit: the free plan allows five Cron Triggers per account.
+const CRON_JOBS = {
+  "0 21 * * *": ["/api/cron/daily-digest"], // JST 06:00
+  "0 4 * * *": ["/api/cron/cleanup", "/api/cron/daily-digest"], // JST 13:00
 };
+
+/** Calls each cron route with the secret and logs its status and (small JSON) body. Never rejects. */
+async function runCronJobs(paths, env, ctx) {
+  for (const path of paths) {
+    const request = new Request(`https://ai-news-feed-app.saitotakuya0719.workers.dev${path}`, {
+      headers: { authorization: `Bearer ${env.CRON_SECRET}` },
+    });
+    try {
+      const res = await openNextHandler.fetch(request, env, ctx);
+      console.log(`[cron] ${path} -> ${res.status} ${await res.text()}`);
+    } catch (err) {
+      console.error(`[cron] ${path} failed`, err);
+    }
+  }
+}
 
 const worker = {
   async fetch(request, env, ctx) {
@@ -40,20 +59,12 @@ const worker = {
   },
 
   async scheduled(controller, env, ctx) {
-    const path = CRON_PATHS[controller.cron];
-    if (!path) {
+    const paths = CRON_JOBS[controller.cron];
+    if (!paths) {
       console.error(`[cron] unknown schedule: ${controller.cron}`);
       return;
     }
-    const request = new Request(`https://ai-news-feed-app.saitotakuya0719.workers.dev${path}`, {
-      headers: { authorization: `Bearer ${env.CRON_SECRET}` },
-    });
-    ctx.waitUntil(
-      openNextHandler.fetch(request, env, ctx).then(
-        (res) => console.log(`[cron] ${path} -> ${res.status}`),
-        (err) => console.error(`[cron] ${path} failed`, err),
-      ),
-    );
+    ctx.waitUntil(runCronJobs(paths, env, ctx));
   },
 };
 
