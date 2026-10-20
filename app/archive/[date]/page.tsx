@@ -12,6 +12,15 @@ import { getAdjacentDigestDates, getDigest } from "@/lib/queries";
 
 export const revalidate = 3600;
 
+// No day is prerendered at build time, but each one is rendered on its first visit and then kept
+// in the incremental cache (R2) like the other ISR pages. Without generateStaticParams the route
+// was dynamic and every visit rendered again (about 1.4 s to first byte). A past day only changes
+// when the next day's digest adds its link, and the daily digest revalidates every day page then
+// (lib/jobs/digest.ts).
+export function generateStaticParams(): { date: string }[] {
+  return [];
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Shared by generateMetadata and the page so the digest is fetched once per request.

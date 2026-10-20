@@ -11,7 +11,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
   },
 }));
 
-import ArchiveDay, { generateMetadata } from "./page";
+import ArchiveDay, { generateMetadata, generateStaticParams } from "./page";
 
 const params = (date: string) => ({ params: Promise.resolve({ date }) });
 
@@ -20,6 +20,10 @@ describe("ArchiveDay", () => {
     queries.getDigest.mockReset();
     queries.getAdjacentDigestDates.mockReset();
     queries.getAdjacentDigestDates.mockResolvedValue({ prev: "2026-09-29", next: "2026-10-01" });
+  });
+
+  it("prerenders no day at build time, so each one is rendered on its first visit and then cached", () => {
+    expect(generateStaticParams()).toEqual([]);
   });
 
   it("returns 404 for a malformed date without touching the database", async () => {
