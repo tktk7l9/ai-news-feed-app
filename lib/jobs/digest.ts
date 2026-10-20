@@ -205,12 +205,14 @@ const dailyDigest = (
     );
   }
 
-  // 9. Revalidate ISR pages
+  // 9. Revalidate the ISR pages that list today's articles. On Workers these reach the cached
+  // pages through the Durable Object tag cache (open-next.config.ts).
   onProgress?.({ stage: "revalidating" });
   try {
     revalidatePath("/");
     revalidatePath("/archive");
     revalidatePath(`/archive/${today}`);
+    revalidatePath("/category/[slug]", "page");
   } catch (e) {
     console.warn("[digest] revalidate failed", e);
   }
