@@ -19,14 +19,25 @@ export type GenerateJsonRequest = {
 };
 
 /**
- * One JSON-mode call to Gemini, returning the response text. A Context.Reference so the
- * production default (the real SDK) needs no wiring, and tests provide a stub.
+ * Upper bound on one Gemini call. Without it the SDK sends the request with no AbortSignal, so a
+ * connection that stalls (no response, no reset) holds the cron until the Worker's own limit kills
+ * the whole invocation, and the retries below never get their turn. The SDK aborts with
+ * "Request aborted when fetching …", which isTransientGeminiError treats like a 503. A full batch
+ * (60 items in, up to 16k output tokens) finishes well inside two minutes; a call that does not is
+ * retried, and a day that still fails is retried by the afternoon cron (worker.js).
  */
-export const GenerateJson = Context.Reference<(req: GenerateJsonRequest) => Promise<string>>(
-  "ai-news-feed/GenerateJson",
-  {
-    defaultValue: () => async (req) => {
-      const model = getGemini().getGenerativeModel({
+export const GEMINI_REQUEST_TIMEOUT_MS = 120_000;
+
+/**
+ * The production GenerateJson: one JSON-mode call through the SDK, bounded by `timeoutMs`.
+ * Exported so a test can run it with a short timeout against a stubbed fetch.
+ */
+export function createGenerateJson({
+  timeoutMs = GEMINI_REQUEST_TIMEOUT_MS,
+}: { timeoutMs?: number } = {}): (req: GenerateJsonRequest) => Promise<string> {
+  return async (req) => {
+    const model = getGemini().getGenerativeModel(
+      {
         model: GEMINI_MODEL,
         systemInstruction: req.systemInstruction,
         generationConfig: {
@@ -36,11 +47,21 @@ export const GenerateJson = Context.Reference<(req: GenerateJsonRequest) => Prom
           // With 4096 it is cut off by MAX_TOKENS before classifying 60 items and the JSON breaks.
           maxOutputTokens: 16384,
         },
-      });
-      const res = await model.generateContent(req.prompt);
-      return res.response.text();
-    },
-  },
+      },
+      { timeout: timeoutMs },
+    );
+    const res = await model.generateContent(req.prompt);
+    return res.response.text();
+  };
+}
+
+/**
+ * One JSON-mode call to Gemini, returning the response text. A Context.Reference so the
+ * production default (the real SDK) needs no wiring, and tests provide a stub.
+ */
+export const GenerateJson = Context.Reference<(req: GenerateJsonRequest) => Promise<string>>(
+  "ai-news-feed/GenerateJson",
+  { defaultValue: () => createGenerateJson() },
 );
 
 /** A Gemini call that still failed after every retry. stage says which of the two calls it was. */
@@ -59,9 +80,10 @@ const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([408, 429, 500, 502, 503
 
 /**
  * Whether a failed call is worth waiting out. The SDK puts the HTTP status on `status`
- * (503 "This model is currently experiencing high demand" ended the 2026-10-20 run), and
+ * (503 "This model is currently experiencing high demand" ended the 2026-10-20 run),
  * rethrows a fetch that never got a status (DNS, reset, "Network connection lost.") as
- * "Error fetching from <url>: <reason>". Exported for tests.
+ * "Error fetching from <url>: <reason>", and reports the GEMINI_REQUEST_TIMEOUT_MS abort as
+ * "Request aborted when fetching <url>: …". Exported for tests.
  */
 export function isTransientGeminiError(cause: unknown): boolean {
   if (typeof cause !== "object" || cause === null) return false;
@@ -73,8 +95,9 @@ export function isTransientGeminiError(cause: unknown): boolean {
 
 // Waits before each retry. An overloaded model usually recovers within minutes, so transient
 // failures wait 15s, 45s, then 135s (4 attempts, about 3 minutes); anything else gets the
-// short 1s, 2s (3 attempts). Both stages together stay well inside the 15-minute limit of a
-// Cron Trigger invocation, and the afternoon cron retries a day that still failed (worker.js).
+// short 1s, 2s (3 attempts). With GEMINI_REQUEST_TIMEOUT_MS on each call, both stages together
+// normally stay inside the 15-minute limit of a Cron Trigger invocation, and the afternoon cron
+// retries a day that still failed (worker.js).
 const RETRY_DELAYS_MS = [1_000, 2_000];
 const TRANSIENT_RETRY_DELAYS_MS = [15_000, 45_000, 135_000];
 
