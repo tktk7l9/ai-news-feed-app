@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { Effect, Fiber } from "effect";
 import { TestClock } from "effect/testing";
 import {
+  GEMINI_REQUEST_TIMEOUT_MS,
   GenerateJson,
+  createGenerateJson,
   generateDigest,
   isTransientGeminiError,
   normalizeClassifications,
@@ -11,6 +13,7 @@ import {
   retryDelayMs,
   type GenerateJsonRequest,
 } from "./digest.ts";
+import { FILTER_RESPONSE_SCHEMA } from "./prompts.ts";
 
 const input = (id: string) => ({
   raw_id: id,
@@ -278,4 +281,58 @@ test("a reply with an out-of-range importance and an unknown category still yiel
     [["a", "other", 5]],
   );
   assert.match(result.overview_ja, /ありませんでした/);
+});
+
+// The production GenerateJson (createGenerateJson) runs the real SDK against a stubbed fetch: the
+// SDK reads the global fetch on every call. A short timeout keeps the SDK's abort timer (never
+// cleared) from holding the test process open.
+async function withFetch<T>(stub: typeof fetch, fn: () => Promise<T>): Promise<T> {
+  process.env.GEMINI_API_KEY ??= "test-key";
+  const original = globalThis.fetch;
+  globalThis.fetch = stub;
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+const sdkRequest: GenerateJsonRequest = {
+  stage: "filter",
+  systemInstruction: "classify",
+  responseSchema: FILTER_RESPONSE_SCHEMA,
+  prompt: "[]",
+};
+
+test("the production GenerateJson sends each call with an abort signal and returns the reply text", async () => {
+  assert.equal(GEMINI_REQUEST_TIMEOUT_MS, 120_000);
+  let signal: AbortSignal | null | undefined;
+  const text = await withFetch(
+    async (_url, init) => {
+      signal = init?.signal;
+      return Response.json({
+        candidates: [{ content: { role: "model", parts: [{ text: '{"articles":[]}' }] }, finishReason: "STOP", index: 0 }],
+      });
+    },
+    () => createGenerateJson({ timeoutMs: 50 })(sdkRequest),
+  );
+  assert.equal(text, '{"articles":[]}');
+  // The SDK only attaches a signal when a timeout (or signal) is given; without one a stalled
+  // connection would hang the cron until the Worker's limit.
+  assert.ok(signal instanceof AbortSignal, "fetch received an AbortSignal");
+});
+
+test("a call that stalls past the timeout fails as the abort the retry loop treats as transient", async () => {
+  const outcome = await withFetch(
+    (_url, init) =>
+      new Promise<Response>((_, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(Object.assign(new Error("This operation was aborted"), { name: "AbortError" })),
+        );
+      }),
+    () => createGenerateJson({ timeoutMs: 20 })(sdkRequest).then(() => null, (e: unknown) => e),
+  );
+  assert.ok(outcome instanceof Error, "the call rejected");
+  assert.match(outcome.message, /Request aborted when fetching/);
+  assert.equal(isTransientGeminiError(outcome), true);
 });
