@@ -24,7 +24,7 @@ npm install
 1. [Supabase](https://supabase.com) でプロジェクト作成
 2. SQL Editorで `supabase/migrations/0001_init.sql` を実行
 3. SQL Editorで `supabase/seed.sql` を実行 (初期RSSソース投入)
-4. Project Settings → API から `URL` / `anon key` / `service_role key` を取得
+4. Project Settings → API から `URL` / `service_role key` を取得（anon key は使わない。Supabase へはサーバーからだけ接続する）
 
 ### 3. Google Gemini
 
@@ -32,20 +32,15 @@ npm install
 
 ### 4. 環境変数
 
-`.env.local.example` をコピーして `.env.local` を作成し、各値を設定。
-
-```bash
-cp .env.local.example .env.local
-```
+`.env.local` を作成し、以下を設定（ひな形ファイルは無い）。`npm run preview`（Workers のランタイムで確認）は `.env.local` ではなく `.dev.vars` を読むので、そちらにも同じキーを置く（どちらも gitignore 済み）。
 
 | 変数名 | 説明 |
 |--------|------|
 | `GEMINI_API_KEY` | Google Gemini APIキー |
-| `NEXT_PUBLIC_SUPABASE_URL` | SupabaseプロジェクトURL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymousキー |
+| `NEXT_PUBLIC_SUPABASE_URL` | SupabaseプロジェクトURL (サーバー側だけで使う) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service roleキー (サーバー専用) |
 | `CRON_SECRET` | Cronエンドポイント認証トークン |
-| `APP_URL` | 本番ドメイン (デフォルト: `http://localhost:3000`) |
+| `NEXT_PUBLIC_SITE_URL` | 任意。OGP・canonical の基準 URL (未設定なら `https://ai-news-feed-app.saitotakuya0719.workers.dev`) |
 
 `CRON_SECRET` は以下で生成:
 
@@ -69,13 +64,22 @@ curl -H "Authorization: Bearer $(grep CRON_SECRET .env.local | cut -d= -f2)" \
 
 レスポンスに `{ "date": "...", "accepted": N }` が返れば成功。
 
-### 7. デプロイ
+### 7. デプロイ (Cloudflare Workers)
+
+本番は https://ai-news-feed-app.saitotakuya0719.workers.dev 。main に push すると Workers Builds がビルドしてデプロイする。手元から出す場合は次のとおり。
 
 ```bash
-vercel
+npm run deploy   # opennextjs-cloudflare build && deploy
 ```
 
-Vercel Dashboard で環境変数を設定 (`.env.local` と同じキー)。`vercel.json` の Cron 定義がデプロイ後に自動で有効化される。
+秘密の値は Worker のシークレットとして設定する (`wrangler.jsonc` には書かない。`.env.local` はローカル開発専用)。
+
+```bash
+npx wrangler secret put GEMINI_API_KEY
+npx wrangler secret list   # 設定済みの一覧
+```
+
+Cron の定義は `wrangler.jsonc` の `triggers.crons` で、デプロイすると有効になる。叩く URL は `worker.js` の `CRON_JOBS` に書いてあり、両方をそろえておく。
 
 ## ディレクトリ構成
 
@@ -109,7 +113,8 @@ lib/
 supabase/
   migrations/0001_init.sql      # スキーマ定義 (RLS有効)
   seed.sql                      # 初期RSSソース
-vercel.json                     # Cron定義
+worker.js                       # Workers のエントリ (CSP nonce + Cron の scheduled)
+wrangler.jsonc                  # Workers 設定 (Cron Triggers・R2・Durable Objects)
 ```
 
 ## セキュリティ
